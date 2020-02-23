@@ -1,0 +1,40 @@
+# Anti-deepfake
+
+## Preprocess
+
+- Usage
+
+1. Generate frames, will save the frames under `../dataset/frames/`
+
+   ```bash
+   cd ./tools/
+   python generate_frames.py path/to/videos --cpu_num 48
+   ```
+
+2. Generate face patches, will save the patches under `../dataset/patches/` and will save a csv file `patch_image_statics.csv`.
+
+   ```bash
+   cd ./tools/
+   python generate_patches.py path/to/frames/
+   ```
+
+   `patch_image_statics.csv` contains `PatchName` and `Score`:
+
+   | PatchName                 | Score              |
+   | ------------------------- | ------------------ |
+   | uaspniazcl_002_face_0.jpg | 0.9996267557144165 |
+   | uaspniazcl_003_face_0.jpg | 0.9994097948074341 |
+   | uaspniazcl_001_face_0.jpg | 0.9971966743469238 |
+
+   Remember to collect this file after a batch of computation.
+
+- Name rules
+
+1. Frame images:
+
+   `VideoName_FrameId.jpg` eg. `rmufsuogzn_006.jpg`,  `vxawghqzyf_007.jpg`.
+
+2. Patch images:
+
+   `VideoName_FrameId_face_FaceId.jpg` eg. `ucthmsajay_008_face_0.jpg`, `zzlsynxeff_008_face_0.jpg`
+
