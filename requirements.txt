@@ -1,0 +1,9 @@
+PIL
+opencv-python
+torch
+torchvision
+numpy
+pandas
+parmap
+facenet_pytorch
+tqdm
