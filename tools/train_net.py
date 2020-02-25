@@ -5,18 +5,23 @@ Created On 23rd Feb, 2020
 Author: Bohang Li
 """
 import os
+import sys
+dir_name = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(dir_name, "../"))
 import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
 from torch.utils.data import Dataset, DataLoader
 from skimage import io as sio
+from skimage import transform as tsf
 import numpy as np
 import torch
 from torch.optim import Adam
-from albumentations.augmentations.transforms import HorizontalFlip
+from albumentations.augmentations.transforms import HorizontalFlip, Resize
 from torchvision import transforms
 import pandas as pd
 import sklearn
+from sklearn.metrics import log_loss, recall_score
 
 
 # TODO: Need to finish after data is ready!
@@ -32,11 +37,21 @@ class PatchDataset(Dataset):
 
     def __getitem__(self, idx):
         image = sio.imread(os.path.join(self.img_folder, self.image_name_list[idx]))
-        label = None
+        label = self.label_name_list[idx]
         if self.transform:
             image = self.transform(image)
         sample = {'image': image, 'label': label}
         return sample
+
+
+class Rescale(object):
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    def __call__(self, image):
+        img = tsf.resize(image, (self.height, self.width), mode='constant')
+        return img
 
 
 class ToTensor(object):
@@ -67,18 +82,19 @@ def criterion1(pred1, targets):
 
 
 def train_model(epoch, n_epochs, history):
-    batch_size = 8
+    batch_size = 16
+    model.cuda()
     model.train()
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=0.001
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=5, mode='min',
+        optimizer, patience=20, mode='min',
         factor=0.7, verbose=True, min_lr=1e-5
     )
     total_loss = 0
-    train_data_path = ""
+    train_data_path = "../dataset/face_patches/"
     label_csv = pd.read_csv("../dataset/face_patch.csv")
     train_image_list = label_csv["PatchName"]
     train_label_list = label_csv["Label"]
@@ -87,14 +103,15 @@ def train_model(epoch, n_epochs, history):
         train_label_list,
         train_data_path,
         # TODO: more data augmentation!
-        transform=transforms.Compose([HorizontalFlip(p=0.3), ToTensor()])
+        transform=transforms.Compose([Rescale(300, 300), ToTensor()])
     )
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
     t = tqdm(train_loader)
-    for i, (img_batch, y_batch) in enumerate(t):
+    for i, data in enumerate(t):
+        img_batch = data["image"]
+        y_batch = data["label"]
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
-
         optimizer.zero_grad()
 
         out = model(img_batch)
@@ -111,15 +128,18 @@ def train_model(epoch, n_epochs, history):
         loss.backward()
         optimizer.step()
         if scheduler is not None:
-            scheduler.step()
+            scheduler.step(total_loss)
 
 
 def evaluate_model(epoch, scheduler=None, history=None):
+    model.cuda()
     model.eval()
     loss = 0
     pred = []
     real = []
-    val_data_path = ""
+    # Need to change here.
+    batch_size = 16
+    val_data_path = "../dataset/face_patches/"
     label_csv = pd.read_csv("../dataset/face_patch.csv")
     val_image_list = label_csv["PatchName"]
     val_label_list = label_csv["Label"]
@@ -127,11 +147,13 @@ def evaluate_model(epoch, scheduler=None, history=None):
         val_image_list,
         val_label_list,
         val_data_path,
-        transform=transforms.Compose([ToTensor()])
+        transform=transforms.Compose([Rescale(300, 300), ToTensor()])
     )
-    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=True, num_workers=1)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
     with torch.no_grad():
-        for img_batch, y_batch in val_loader:
+        for data in val_loader:
+            img_batch = data["image"]
+            y_batch = data["label"]
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
@@ -148,11 +170,11 @@ def evaluate_model(epoch, scheduler=None, history=None):
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
-    acc = sklearn.metrics.recall_score(real, pred, average='macro')
+    acc = recall_score(real, pred, average='macro')
 
     real = [r.item() for r in real]
     pred2 = np.array(pred2).clip(0.1, 0.9)
-    kaggle = sklearn.metrics.log_loss(real, pred2)
+    kaggle = log_loss(real, pred2)
 
     loss /= len(val_loader)
 
@@ -190,5 +212,5 @@ if __name__ == "__main__":
 
         if loss < best:
             best = loss
-            print(f'Saving best model...')
-            torch.save(model.state_dict(), f'model.pth')
+            print('Saving best model...')
+            torch.save(model.state_dict(), '../saved_models/model.pth')

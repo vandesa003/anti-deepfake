@@ -27,6 +27,13 @@
    | uaspniazcl_001_face_0.jpg | 0.9971966743469238 |
 
    Remember to collect this file after a batch of computation.
+   
+3. Generate training label csv.
+
+   ```bash
+   cd ./tools/
+   python anno_parse.py path/to/patch/file path/to/jsonfile --saving_path path/to/save
+   ```
 
 - Name rules
 
@@ -38,3 +45,21 @@
 
    `VideoName_FrameId_face_FaceId.jpg` eg. `ucthmsajay_008_face_0.jpg`, `zzlsynxeff_008_face_0.jpg`
 
+## Training
+
+Train the Exception Net. Need to change some path in the code.
+
+```bash
+cd ./tools/
+python train_net.py
+```
+
+After training, the best model will saved under `./saved_models/model.pth`
+
+## TODO List
+
+- [x] XceptionNet
+- [x] Basic training logic
+- [ ] Weighted training
+- [ ] Data augmentation
+- [ ] Better face detection model/ finetune face detection model
