@@ -1,0 +1,3 @@
+INFO:face_detection.py:163:2020-02-26 02:06:49 miss bbox number: 2783
+INFO:face_detection.py:164:2020-02-26 02:06:49 miss face number: 165704
+INFO:face_detection.py:165:2020-02-26 02:06:52 total detect: 1192204 images
