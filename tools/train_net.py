@@ -82,7 +82,7 @@ def criterion1(pred1, targets):
 
 
 def train_model(epoch, n_epochs, history):
-    batch_size = 16
+    batch_size = 32
     model.cuda()
     model.train()
     optimizer = Adam(
@@ -95,9 +95,9 @@ def train_model(epoch, n_epochs, history):
     )
     total_loss = 0
     train_data_path = "../dataset/face_patches/"
-    label_csv = pd.read_csv("../dataset/face_patch.csv")
-    train_image_list = label_csv["PatchName"]
-    train_label_list = label_csv["Label"]
+    label_csv = pd.read_csv("../dataset/trn_face_patches.csv")
+    train_image_list = label_csv["patchName"]
+    train_label_list = label_csv["label"]
     train_dataset = PatchDataset(
         train_image_list,
         train_label_list,
@@ -138,11 +138,11 @@ def evaluate_model(epoch, scheduler=None, history=None):
     pred = []
     real = []
     # Need to change here.
-    batch_size = 16
+    batch_size = 32
     val_data_path = "../dataset/face_patches/"
-    label_csv = pd.read_csv("../dataset/face_patch.csv")
-    val_image_list = label_csv["PatchName"]
-    val_label_list = label_csv["Label"]
+    label_csv = pd.read_csv("../dataset/val_face_patches.csv")
+    val_image_list = label_csv["patchName"]
+    val_label_list = label_csv["label"]
     val_dataset = PatchDataset(
         val_image_list,
         val_label_list,
