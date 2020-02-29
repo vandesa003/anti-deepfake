@@ -663,4 +663,4 @@ if __name__ == "__main__":
     res = pd.DataFrame(columns=["filename", "label"])
     res["filename"] = filename
     res["label"] = label
-    res.to_csv("submission.csv", index=False)
+    res.to_csv("../dataset/submission.csv", index=False)
