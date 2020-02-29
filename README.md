@@ -54,12 +54,24 @@ cd ./tools/
 python train_net.py
 ```
 
-After training, the best model will saved under `./saved_models/model.pth`
+After training, the best model and checkpoints will saved under `./saved_models/model.pth`
+
+## Inference
+
+Do inference on video level.
+
+```bash
+cd ./tools/
+python infer_net.py
+```
+
+After inference, the result will be saved under `./dataset/submission.csv`
 
 ## TODO List
 
 - [x] XceptionNet
 - [x] Basic training logic
-- [ ] Weighted training
+- [x] Weighted training
+- [x] Inference
 - [ ] Data augmentation
 - [ ] Better face detection model/ finetune face detection model
