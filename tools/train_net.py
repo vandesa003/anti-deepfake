@@ -22,11 +22,13 @@ from torchvision import transforms
 import pandas as pd
 import sklearn
 from sklearn.metrics import log_loss, recall_score
+from utils.logger import init_logging
+import shutil
 
 
 # TODO: Need to finish after data is ready!
 class PatchDataset(Dataset):
-    def __init__(self, image_name_list, label_list, img_folder, transform=None):
+    def __init__(self, image_name_list, img_folder, label_list=None, transform=None):
         self.image_name_list = image_name_list
         self.label_name_list = label_list
         self.img_folder = img_folder
@@ -37,9 +39,12 @@ class PatchDataset(Dataset):
 
     def __getitem__(self, idx):
         image = sio.imread(os.path.join(self.img_folder, self.image_name_list[idx]))
-        label = self.label_name_list[idx]
         if self.transform:
             image = self.transform(image)
+        if self.label_name_list is not None:
+            label = self.label_name_list[idx]
+        else:
+            label = 0
         sample = {'image': image, 'label': label}
         return sample
 
@@ -76,32 +81,48 @@ class ToTensor(object):
         return torch.from_numpy(tmpImg)
 
 
-def criterion1(pred1, targets):
-    l1 = F.binary_cross_entropy(F.sigmoid(pred1), targets)
+def criterion1(pred1, targets, weight=None):
+    l1 = F.binary_cross_entropy(F.sigmoid(pred1), targets, weight=weight)
     return l1
 
 
-def train_model(epoch, n_epochs, history):
+def save_ckp(state, is_best, checkpoint_dir, best_model_dir):
+    f_path = os.path.join(checkpoint_dir, "checkpoint.pt")
+    torch.save(state, f_path)
+    if is_best:
+        best_fpath = os.path.join(best_model_dir, 'best_model.pt')
+        shutil.copyfile(f_path, best_fpath)
+
+
+def load_ckp(checkpoint_fpath, model, optimizer):
+    checkpoint = torch.load(checkpoint_fpath)
+    model.load_state_dict(checkpoint['state_dict'])
+    model.cuda()
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    return model, optimizer, checkpoint['epoch']
+
+
+def train_model(epoch, n_epochs, history, optimizer, logger=None):
+    if logger is None:
+        logger = init_logging(log_dir="../logs/", log_file="training.log", log_level="error")
     batch_size = 16
     model.cuda()
     model.train()
-    optimizer = Adam(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=0.001
-    )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=20, mode='min',
         factor=0.7, verbose=True, min_lr=1e-5
     )
     total_loss = 0
+    # Need to change here!
+    class_weights = torch.tensor([0.9, 0.1])
     train_data_path = "../dataset/face_patches/"
     label_csv = pd.read_csv("../dataset/face_patch.csv")
     train_image_list = label_csv["PatchName"]
     train_label_list = label_csv["Label"]
     train_dataset = PatchDataset(
         train_image_list,
-        train_label_list,
         train_data_path,
+        train_label_list,
         # TODO: more data augmentation!
         transform=transforms.Compose([Rescale(300, 300), ToTensor()])
     )
@@ -115,10 +136,14 @@ def train_model(epoch, n_epochs, history):
         optimizer.zero_grad()
 
         out = model(img_batch)
-        loss = criterion1(out, y_batch)
+        weight = class_weights[y_batch.data.view(-1).long()].view_as(y_batch).cuda()
+        loss = criterion1(out, y_batch, weight=weight)
 
         total_loss += loss
         t.set_description(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
+            optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
+        if i % 20 == 0:
+            logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
             optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
 
         if history is not None:
@@ -131,7 +156,9 @@ def train_model(epoch, n_epochs, history):
             scheduler.step(total_loss)
 
 
-def evaluate_model(epoch, scheduler=None, history=None):
+def evaluate_model(epoch, scheduler=None, history=None, logger=None):
+    if logger is None:
+        logger = init_logging(log_dir="../logs/", log_file="training.log", log_level="error")
     model.cuda()
     model.eval()
     loss = 0
@@ -145,8 +172,8 @@ def evaluate_model(epoch, scheduler=None, history=None):
     val_label_list = label_csv["Label"]
     val_dataset = PatchDataset(
         val_image_list,
-        val_label_list,
         val_data_path,
+        val_label_list,
         transform=transforms.Compose([Rescale(300, 300), ToTensor()])
     )
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
@@ -184,33 +211,61 @@ def evaluate_model(epoch, scheduler=None, history=None):
     if scheduler is not None:
         scheduler.step(loss)
 
-    print(f'Dev loss: %.4f, Acc: %.6f, Kaggle: %.6f' % (loss, acc, kaggle))
+    logger.info(f'Dev loss: %.4f, Acc: %.6f, Kaggle: %.6f' % (loss, acc, kaggle))
 
     return loss
 
 
 if __name__ == "__main__":
     import gc
-
+    logger = init_logging(log_dir="../logs/", log_file="training.log")
+    use_checkpoint = True
+    from_best = True
+    check_point_dir = "../saved_models/"
     model = BinaryXception(in_f=2048)
+    optimizer = Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=0.001
+    )
+    if use_checkpoint is True:
+        if not from_best:
+            checkpoint = os.path.join(check_point_dir, "checkpoint.pt")
+        else:
+            checkpoint = os.path.join(check_point_dir, "best_model.pt")
+        model, optimizer, current_epoch = load_ckp(checkpoint, model, optimizer)
+        logger.info("loaded checkpoint, start from epoch: {0}".format(current_epoch))
+    else:
+        current_epoch = 0
+        logger.info("start from epoch: {0}".format(current_epoch))
     history = pd.DataFrame()
     history2 = pd.DataFrame()
     torch.cuda.empty_cache()
     gc.collect()
 
     best = 1e10
-    n_epochs = 20
+    n_epochs = 8
     batch_size = 128
 
-    for epoch in range(n_epochs):
+    for epoch in range(current_epoch, n_epochs):
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_model(epoch, n_epochs, history=history)
+        train_model(epoch, n_epochs, history=history, optimizer=optimizer, logger=logger)
 
-        loss = evaluate_model(epoch, scheduler=None, history=history2)
+        loss = evaluate_model(epoch, scheduler=None, history=history2, logger=logger)
+
+        checkpoint = {
+            'epoch': epoch + 1,
+            'state_dict': model.state_dict(),
+            'optimizer': optimizer.state_dict()
+        }
+        save_ckp(checkpoint, is_best=False, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
 
         if loss < best:
             best = loss
-            print('Saving best model...')
+            logger.info('Saving best model...')
+            save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
             torch.save(model.state_dict(), '../saved_models/model.pth')
+
+    history.to_csv("../saved_models/train_history.csv", index=False)
+    history2.to_csv("../saved_models/est_history.csv", index=False)
