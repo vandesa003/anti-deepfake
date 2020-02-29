@@ -219,6 +219,7 @@ def evaluate_model(epoch, scheduler=None, history=None, logger=None):
 if __name__ == "__main__":
     import gc
     logger = init_logging(log_dir="../logs/", log_file="training.log")
+    # need to change it!!!
     use_checkpoint = True
     from_best = True
     check_point_dir = "../saved_models/"
