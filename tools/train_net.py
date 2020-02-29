@@ -105,7 +105,7 @@ def load_ckp(checkpoint_fpath, model, optimizer):
 def train_model(epoch, n_epochs, history, optimizer, logger=None):
     if logger is None:
         logger = init_logging(log_dir="../logs/", log_file="training.log", log_level="error")
-    batch_size = 16
+    batch_size = 32
     model.cuda()
     model.train()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -116,9 +116,9 @@ def train_model(epoch, n_epochs, history, optimizer, logger=None):
     # Need to change here!
     class_weights = torch.tensor([0.9, 0.1])
     train_data_path = "../dataset/face_patches/"
-    label_csv = pd.read_csv("../dataset/face_patch.csv")
-    train_image_list = label_csv["PatchName"]
-    train_label_list = label_csv["Label"]
+    label_csv = pd.read_csv("../dataset/trn_face_patches.csv")
+    train_image_list = label_csv["patchName"]
+    train_label_list = label_csv["label"]
     train_dataset = PatchDataset(
         train_image_list,
         train_data_path,
@@ -165,11 +165,11 @@ def evaluate_model(epoch, scheduler=None, history=None, logger=None):
     pred = []
     real = []
     # Need to change here.
-    batch_size = 16
+    batch_size = 32
     val_data_path = "../dataset/face_patches/"
-    label_csv = pd.read_csv("../dataset/face_patch.csv")
-    val_image_list = label_csv["PatchName"]
-    val_label_list = label_csv["Label"]
+    label_csv = pd.read_csv("../dataset/val_face_patches.csv")
+    val_image_list = label_csv["patchName"]
+    val_label_list = label_csv["label"]
     val_dataset = PatchDataset(
         val_image_list,
         val_data_path,
