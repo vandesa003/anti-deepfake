@@ -119,7 +119,7 @@ def crop_bbox(img, bbox):
     return cropped_img
 
 
-def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1):
+def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
     """
     get and save face patches from frames using MTCNN.
     :param frames_path: extracted frames path.
@@ -135,6 +135,7 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1):
     miss_face = []
     for file in tqdm(glob(os.path.join(frames_path, "*.jpg"))):
         img = cv2.imread(file)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         basename = str(os.path.basename(file).split(".")[0]) + "_face_"
         boxes, scores = face_detector.detect(img)
         if boxes is None:
@@ -163,6 +164,21 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1):
     logger.info("miss bbox number: {0}".format(len(miss_bbox)))
     logger.info("miss face number: {0}".format(len(miss_face)))
     logger.info("total detect: {0} images".format(len(glob(os.path.join(frames_path, "*.jpg")))))
+
+
+def get_face_patches(img, margin=10):
+    """
+
+    :param img: PIL Image, notice the RGB order if you open image with cv2.
+    :param expand_ratio: enlarged bbox ratio, default 1.3
+    :return:
+    """
+    face_detector = MTCNN(
+        margin=margin, select_largest=False, keep_all=False,
+        thresholds=[0.7, 0.8, 0.8], factor=0.709, device=device
+    ).eval()
+    faces, probs = face_detector(img, return_prob=True)
+    return faces, probs
 
 
 if __name__ == "__main__":
