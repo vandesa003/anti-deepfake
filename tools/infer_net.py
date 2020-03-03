@@ -601,7 +601,7 @@ def predict_on_video(video_path, batch_size):
     video_reader = VideoReader(verbose=True)
     result = video_reader.read_frames(video_path, num_frames=batch_size)
     if result is None:
-        return None
+        return 0.5
     else:
         frames, frame_idx = result
     frames = [frames[idx, :, :, :] for idx in range(frames.shape[0])]

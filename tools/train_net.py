@@ -114,7 +114,6 @@ def train_model(epoch, n_epochs, history, optimizer, logger=None):
     )
     total_loss = 0
     # Need to change here!
-    class_weights = torch.tensor([0.9, 0.1])
     train_data_path = "../dataset/face_patches/"
     label_csv = pd.read_csv("../dataset/trn_face_patches.csv")
     train_image_list = label_csv["patchName"]
@@ -136,8 +135,10 @@ def train_model(epoch, n_epochs, history, optimizer, logger=None):
         optimizer.zero_grad()
 
         out = model(img_batch)
-        weight = class_weights[y_batch.data.view(-1).long()].view_as(y_batch).cuda()
-        loss = criterion1(out, y_batch, weight=weight)
+        # weighted loss
+        # class_weights = torch.tensor([0.8, 0.2])
+        # weight = class_weights[y_batch.data.view(-1).long()].view_as(y_batch).cuda()
+        loss = criterion1(out, y_batch, weight=None)
 
         total_loss += loss
         t.set_description(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
@@ -197,6 +198,7 @@ def evaluate_model(epoch, scheduler=None, history=None, logger=None):
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
+    # TODO: it's only recall!
     acc = recall_score(real, pred, average='macro')
 
     real = [r.item() for r in real]
