@@ -225,7 +225,7 @@ if __name__ == "__main__":
     use_checkpoint = True
     from_best = True
     check_point_dir = "../saved_models/"
-    model = BinaryXception(in_f=2048)
+    model = BinaryXception()
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=0.001

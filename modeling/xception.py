@@ -36,7 +36,7 @@ class Head(nn.Module):
 
 
 class BinaryXception(nn.Module):
-    def __init__(self, in_f):
+    def __init__(self):
         """
 
         :param in_f: default 2048.
@@ -46,7 +46,7 @@ class BinaryXception(nn.Module):
         # model = get_model("resnet18", pretrained=True)
         model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
         self.base = model
-        self.h1 = Head(in_f, 1)
+        self.h1 = Head(2048, 1)
 
     def forward(self, x):
         x = self.base(x)

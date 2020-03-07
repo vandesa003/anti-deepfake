@@ -8,6 +8,9 @@ Created On 22th Feb, 2020
 Author: Bohang Li
 """
 import os
+import sys
+dir_name = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(dir_name, "../"))
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch
 import cv2
@@ -127,7 +130,8 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
     :param expand_ratio: bbox central enlarge ratio, default 1.3
     :return:
     """
-    face_detector = MTCNN(margin=0, keep_all=True, thresholds=[0.7, 0.8, 0.8], factor=0.709, device=device).eval()
+    face_detector = MTCNN(margin=0, keep_all=True, thresholds=[0.7, 0.8, 0.9],
+                          min_face_size=60, factor=0.709, device=device).eval()
     patch_df = pd.DataFrame(columns=["PatchName", "Score"])
     df_score = []
     df_patch_name = []
@@ -135,7 +139,7 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
     miss_face = []
     for file in tqdm(glob(os.path.join(frames_path, "*.jpg"))):
         img = cv2.imread(file)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         basename = str(os.path.basename(file).split(".")[0]) + "_face_"
         boxes, scores = face_detector.detect(img)
         if boxes is None:
@@ -166,6 +170,25 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
     logger.info("total detect: {0} images".format(len(glob(os.path.join(frames_path, "*.jpg")))))
 
 
+def face_boxes_post_process(img, box, expand_ratio):
+    """
+    enlarge and crop the face patch from image
+    :param img: ndarray, 1 frame from video
+    :param box: output of MTCNN
+    :param expand_ratio: default: 1.3
+    :return:
+    """
+    box_xywh = _box_mode_cvt(box)
+    expand_w = int((box_xywh[2] * (expand_ratio - 1)) / 2)
+    expand_h = int((box_xywh[3] * (expand_ratio - 1)) / 2)
+    enlarged_box = _enlarged_bbox(box_xywh, (expand_h, expand_w))
+    try:
+        res = crop_bbox(img, enlarged_box)
+    except ValueError:
+        return box
+    return res
+
+
 def get_face_patches(img, margin=10):
     """
 
@@ -174,12 +197,42 @@ def get_face_patches(img, margin=10):
     :return:
     """
     face_detector = MTCNN(
-        margin=margin, select_largest=False, keep_all=False,
-        thresholds=[0.7, 0.8, 0.8], factor=0.709, device=device
+        margin=margin, select_largest=False, keep_all=False, min_face_size=60,
+        thresholds=[0.7, 0.8, 0.9], factor=0.709, device=device
     ).eval()
     faces, probs = face_detector(img, return_prob=True)
     return faces, probs
 
 
+def get_face_patches_w_landmark(img):
+    """
+
+    :param img:
+    :return:
+    """
+    face_detector = MTCNN(
+        select_largest=False, keep_all=False, min_face_size=60,
+        thresholds=[0.6, 0.8, 0.9], factor=0.709, device=device
+    ).eval()
+    boxes, probs, points = face_detector.detect(img, landmarks=True)
+    print(boxes)
+    print(probs)
+    print(points)
+    return boxes, probs, points
+
+
+def align_landmark_crop(img, box, points):
+    """
+
+    :param img: array,
+    :param box: array, [x,y,x,y]
+    :param points:
+    :return:
+    """
+
+
 if __name__ == "__main__":
     save_face_patches(frames_path="../testdata", saving_path="../testdata")
+    img = cv2.imread("../dataset/frames/zzlsynxeff_009.jpg")
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    get_face_patches_w_landmark(img)

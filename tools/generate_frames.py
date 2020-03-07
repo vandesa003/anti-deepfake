@@ -22,7 +22,8 @@ def get_parser():
 
 
 def fun(filename):
-    fe = FrameExtractor(filename, extract_fraq=30)
+    fe = FrameExtractor(filename)
+    fe.fixed_frame_extract(frame_num=20, start_frame_idx=10, end_frame_idx=10)
     fe.save(saving_path="../dataset/frames")
 
 
