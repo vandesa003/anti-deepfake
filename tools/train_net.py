@@ -222,11 +222,12 @@ if __name__ == "__main__":
     import gc
     logger = init_logging(log_dir="../logs/", log_file="training.log")
     # need to change it!!!
+    device_ids = [0, 1, 2, 3]
     use_checkpoint = False
     from_best = True
     check_point_dir = "../saved_models/"
     model = BinaryXception()
-    model = nn.DataParallel(model, device_ids=[0, 1, ])
+    model = nn.DataParallel(model, device_ids=device_ids)
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=0.001
