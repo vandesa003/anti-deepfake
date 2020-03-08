@@ -16,6 +16,7 @@ from skimage import io as sio
 from skimage import transform as tsf
 import numpy as np
 import torch
+from torch import nn
 from torch.optim import Adam
 from torchvision import transforms
 import pandas as pd
@@ -221,10 +222,11 @@ if __name__ == "__main__":
     import gc
     logger = init_logging(log_dir="../logs/", log_file="training.log")
     # need to change it!!!
-    use_checkpoint = True
+    use_checkpoint = False
     from_best = True
     check_point_dir = "../saved_models/"
     model = BinaryXception()
+    model = nn.DataParallel(model, device_ids=[0, 1, ])
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=0.001
