@@ -26,7 +26,7 @@ if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 else:
     device = 'cpu'
-print('Running on device: {0}'.format(device))
+# print('Running on device: {0}'.format(device))
 
 
 logger = init_logging(log_dir=os.path.abspath("../logs/"), log_file="face_detection.log")
@@ -134,8 +134,10 @@ def save_face_patches(frames_paths: list, saving_path: str, expand_ratio=1.3, ba
     """
     if gpu_id is not None:
         torch.cuda.set_device(gpu_id)
+        device = "cuda: {0}".format(gpu_id)
+        print('Running on device: {0}'.format(device))
     hard_samples = []
-    face_detector = MTCNN(margin=0, keep_all=False, select_largest=False, thresholds=[0.7, 0.8, 0.8],
+    face_detector = MTCNN(margin=0, keep_all=False, select_largest=False, thresholds=[0.6, 0.7, 0.7],
                           min_face_size=60, factor=0.8, device=device).eval()
     patch_df = pd.DataFrame(columns=["PatchName", "Score"])
     df_score = []
@@ -146,7 +148,7 @@ def save_face_patches(frames_paths: list, saving_path: str, expand_ratio=1.3, ba
         basename = str(os.path.basename(file).split(".")[0]) + "_face_0.jpg"
         boxes, confidences = face_detector.detect(img)
         if boxes is None:
-            hard_samples.append(basename.split("_")[0])
+            hard_samples.append(basename.split("_face_")[0])
             continue
         best_confidence = confidences[0]
         best_box = boxes[0, :]
@@ -157,14 +159,13 @@ def save_face_patches(frames_paths: list, saving_path: str, expand_ratio=1.3, ba
 
     patch_df["PatchName"] = df_patch_name
     patch_df["Score"] = df_score
-    hard_samples = set(hard_samples)
     hard_samples = pd.DataFrame(hard_samples, columns=["hashes"])
     if batch is None:
         patch_df.to_csv(os.path.join(saving_path, "patch_image_statics.csv"), index=False)
-        hard_samples.to_csv("hard_samples.csv", index=False)
+        hard_samples.to_csv(os.path.join(saving_path, "hard_samples.csv"), index=False)
     else:
         patch_df.to_csv(os.path.join(saving_path, "patch_image_statics_batch_{0}.csv".format(batch)), index=False)
-        hard_samples.to_csv("hard_samples.csv".format(batch), index=False)
+        hard_samples.to_csv(os.path.join(saving_path, "hard_samples_batch_{0}.csv".format(batch)), index=False)
 
 
 def crop_resize(img, box, image_size):
