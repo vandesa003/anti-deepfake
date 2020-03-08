@@ -17,7 +17,6 @@ from skimage import transform as tsf
 import numpy as np
 import torch
 from torch.optim import Adam
-from albumentations.augmentations.transforms import HorizontalFlip, Resize
 from torchvision import transforms
 import pandas as pd
 import sklearn

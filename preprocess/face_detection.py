@@ -101,7 +101,7 @@ def _box_mode_cvt(bbox):
     # FCOS box format is [x, y, x1, y1]
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
-    cvt_box = [int(bbox[0]), int(bbox[1]), int(w), int(h)]
+    cvt_box = [int(bbox[0]), int(bbox[1]), max(int(w), 0), max(int(h), 0)]
     return cvt_box
 
 
@@ -130,8 +130,9 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
     :param expand_ratio: bbox central enlarge ratio, default 1.3
     :return:
     """
-    face_detector = MTCNN(margin=0, keep_all=True, thresholds=[0.7, 0.8, 0.9],
-                          min_face_size=60, factor=0.709, device=device).eval()
+    hard_samples = []
+    face_detector = MTCNN(margin=0, keep_all=False, select_largest=False, thresholds=[0.7, 0.8, 0.8],
+                          min_face_size=60, factor=0.8, device=device).eval()
     patch_df = pd.DataFrame(columns=["PatchName", "Score"])
     df_score = []
     df_patch_name = []
@@ -140,34 +141,99 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
     for file in tqdm(glob(os.path.join(frames_path, "*.jpg"))):
         img = cv2.imread(file)
         # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        basename = str(os.path.basename(file).split(".")[0]) + "_face_"
-        boxes, scores = face_detector.detect(img)
+        basename = str(os.path.basename(file).split(".")[0]) + "_face_0.jpg"
+        boxes, confidences = face_detector.detect(img)
         if boxes is None:
-            miss_face.append(file)
+            hard_samples.append(basename.split("_")[0])
             continue
-        for i, bbox in enumerate(boxes):
-            patch_name = basename + str(i) + ".jpg"
-            box_xywh = _box_mode_cvt(bbox)
-            expand_w = int((box_xywh[2]*(expand_ratio-1))/2)
-            expand_h = int((box_xywh[3]*(expand_ratio-1))/2)
-            enlarged_box = _enlarged_bbox(box_xywh, (expand_h, expand_w))
-            try:
-                res = crop_bbox(img, enlarged_box)
-            except ValueError:
-                miss_bbox.append(file)
-                continue
-            score = scores[i]
-            df_patch_name.append(patch_name)
-            df_score.append(score)
-            cv2.imwrite(os.path.join(saving_path, patch_name), res)
+        best_confidence = confidences[0]
+        best_box = boxes[0, :]
+        best_face = face_boxes_post_process(img, best_box, expand_ratio=expand_ratio)
+        df_score.append(best_confidence)
+        df_patch_name.append(basename)
+        cv2.imwrite(os.path.join(saving_path, basename), best_face)
+
     patch_df["PatchName"] = df_patch_name
     patch_df["Score"] = df_score
     patch_df.to_csv(os.path.join(saving_path, "patch_image_statics.csv"), index=False)
+    hard_samples = set(hard_samples)
+    hard_samples = pd.DataFrame(hard_samples, columns=["hashes"])
+    hard_samples.to_csv("hard_samples.csv", index=False)
+
     logger.info("miss bbox: {0}".format(set(miss_bbox)))
     logger.info("miss face: {0}".format(set(miss_face)))
     logger.info("miss bbox number: {0}".format(len(miss_bbox)))
     logger.info("miss face number: {0}".format(len(miss_face)))
     logger.info("total detect: {0} images".format(len(glob(os.path.join(frames_path, "*.jpg")))))
+
+
+def crop_resize(img, box, image_size):
+    """
+    learn from MTCNN.
+    :param img:
+    :param box:
+    :param image_size:
+    :return:
+    """
+    if isinstance(img, np.ndarray):
+        out = cv2.resize(
+            img[box[1]:box[3], box[0]:box[2]],
+            (image_size, image_size),
+            interpolation=cv2.INTER_AREA
+        ).copy()
+    else:
+        out = img.crop(box).copy().resize((image_size, image_size), Image.BILINEAR)
+    return out
+
+
+def get_size(img):
+    """
+    learn from MTCNN.
+    :param img:
+    :return:
+    """
+    if isinstance(img, np.ndarray):
+        return img.shape[1::-1]
+    else:
+        return img.size
+
+
+def extract_face(img, box, image_size=160, margin=0, save_path=None):
+    """
+    learn from MTCNN.
+    Extract face + margin from PIL Image given bounding box.
+
+    Arguments:
+        img {PIL.Image} -- A PIL Image.
+        box {numpy.ndarray} -- Four-element bounding box.
+        image_size {int} -- Output image size in pixels. The image will be square.
+        margin {int} -- Margin to add to bounding box, in terms of pixels in the final image.
+            Note that the application of the margin differs slightly from the davidsandberg/facenet
+            repo, which applies the margin to the original image before resizing, making the margin
+            dependent on the original image size.
+        save_path {str} -- Save path for extracted face image. (default: {None})
+
+    Returns:
+        torch.tensor -- tensor representing the extracted face.
+    """
+    from torchvision.transforms import functional as F
+    margin = [
+        margin * (box[2] - box[0]) / (image_size - margin),
+        margin * (box[3] - box[1]) / (image_size - margin),
+    ]
+    raw_image_size = get_size(img)
+    box = [
+        int(max(box[0] - margin[0] / 2, 0)),
+        int(max(box[1] - margin[1] / 2, 0)),
+        int(min(box[2] + margin[0] / 2, raw_image_size[0])),
+        int(min(box[3] + margin[1] / 2, raw_image_size[1])),
+    ]
+
+    face = crop_resize(img, box, image_size)
+
+    face = F.to_tensor(np.float32(face))
+
+    return face
 
 
 def face_boxes_post_process(img, box, expand_ratio):
@@ -178,6 +244,7 @@ def face_boxes_post_process(img, box, expand_ratio):
     :param expand_ratio: default: 1.3
     :return:
     """
+    box = [max(b, 0) for b in box]
     box_xywh = _box_mode_cvt(box)
     expand_w = int((box_xywh[2] * (expand_ratio - 1)) / 2)
     expand_h = int((box_xywh[3] * (expand_ratio - 1)) / 2)
@@ -185,7 +252,10 @@ def face_boxes_post_process(img, box, expand_ratio):
     try:
         res = crop_bbox(img, enlarged_box)
     except ValueError:
-        return box
+        try:
+            res = crop_bbox(img, box_xywh)
+        except ValueError:
+            return img
     return res
 
 
@@ -229,6 +299,7 @@ def align_landmark_crop(img, box, points):
     :param points:
     :return:
     """
+    pass
 
 
 if __name__ == "__main__":

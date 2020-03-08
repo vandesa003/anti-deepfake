@@ -42,6 +42,7 @@ class FrameExtractor(object):
             if frame is None:
                 continue
             if (count-start_frame_idx) % interval == 0:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)  # convert color to RGB!
                 frames.append(frame)
         self.video.release()
         self.key_frames = frames
@@ -72,9 +73,10 @@ class FrameExtractor(object):
     def save(self, saving_path):
         for ids, frame in enumerate(self.key_frames):
             filename = os.path.join(saving_path, self.base_name + "_" + "{0}".format(str(ids)).zfill(3) + ".jpg")
+            bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             cv2.imwrite(
                 filename=filename,
-                img=frame
+                img=bgr_frame
             )
 
 
