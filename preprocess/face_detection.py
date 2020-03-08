@@ -122,23 +122,25 @@ def crop_bbox(img, bbox):
     return cropped_img
 
 
-def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
+def save_face_patches(frames_paths: list, saving_path: str, expand_ratio=1.3, batch=None, gpu_id=None):
     """
     get and save face patches from frames using MTCNN.
-    :param frames_path: extracted frames path.
+    :param frames_paths: list, extracted frames paths.
     :param saving_path: saving path of face patches.
     :param expand_ratio: bbox central enlarge ratio, default 1.3
+    :param batch: used for multi-processing.
+    :param gpu_id: used for multi-processing.
     :return:
     """
+    if gpu_id is not None:
+        torch.cuda.set_device(gpu_id)
     hard_samples = []
     face_detector = MTCNN(margin=0, keep_all=False, select_largest=False, thresholds=[0.7, 0.8, 0.8],
                           min_face_size=60, factor=0.8, device=device).eval()
     patch_df = pd.DataFrame(columns=["PatchName", "Score"])
     df_score = []
     df_patch_name = []
-    miss_bbox = []
-    miss_face = []
-    for file in tqdm(glob(os.path.join(frames_path, "*.jpg"))):
+    for file in tqdm(frames_paths):
         img = cv2.imread(file)
         # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         basename = str(os.path.basename(file).split(".")[0]) + "_face_0.jpg"
@@ -155,16 +157,14 @@ def save_face_patches(frames_path: str, saving_path: str, expand_ratio=1.3):
 
     patch_df["PatchName"] = df_patch_name
     patch_df["Score"] = df_score
-    patch_df.to_csv(os.path.join(saving_path, "patch_image_statics.csv"), index=False)
     hard_samples = set(hard_samples)
     hard_samples = pd.DataFrame(hard_samples, columns=["hashes"])
-    hard_samples.to_csv("hard_samples.csv", index=False)
-
-    logger.info("miss bbox: {0}".format(set(miss_bbox)))
-    logger.info("miss face: {0}".format(set(miss_face)))
-    logger.info("miss bbox number: {0}".format(len(miss_bbox)))
-    logger.info("miss face number: {0}".format(len(miss_face)))
-    logger.info("total detect: {0} images".format(len(glob(os.path.join(frames_path, "*.jpg")))))
+    if batch is None:
+        patch_df.to_csv(os.path.join(saving_path, "patch_image_statics.csv"), index=False)
+        hard_samples.to_csv("hard_samples.csv", index=False)
+    else:
+        patch_df.to_csv(os.path.join(saving_path, "patch_image_statics_batch_{0}.csv".format(batch)), index=False)
+        hard_samples.to_csv("hard_samples.csv".format(batch), index=False)
 
 
 def crop_resize(img, box, image_size):
