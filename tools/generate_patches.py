@@ -40,7 +40,6 @@ if __name__ == "__main__":
     whole_path_list = glob(os.path.join(path, "*.jpg"))
     batch_path_list = chunks(whole_path_list, cpu_num)
     print(len(batch_path_list))
-    process_pool = []
     p = Pool()
     for i in range(cpu_num):
         p.apply_async(save_face_patches, args=(batch_path_list[i], "../dataset/face_patches", 1.3, i, i))

@@ -16,7 +16,8 @@ from tqdm import tqdm
 from preprocess.extract_frames import FrameExtractor
 from facenet_pytorch import MTCNN, InceptionResnetV1
 from preprocess.face_detection import face_boxes_post_process
-from tools.train_net import Rescale, ToTensor
+# TODO: infer_transformer!!!
+from dataloaders.transformers import infer_transformer
 from torchvision import transforms
 
 
@@ -53,7 +54,7 @@ class VideoProcess(object):
 
     def classifier(self, input_size):
         print("there are: {} faces".format(len(self.faces)))
-        transformer = transforms.Compose([Rescale(input_size, input_size), ToTensor()])
+        transformer = infer_transformer
         transformed_face_list = [transformer(x) for x in self.faces]
         faces_tensor = torch.stack(transformed_face_list)
         x = torch.tensor(faces_tensor, device=torch.device("cuda")).float()
