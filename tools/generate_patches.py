@@ -20,7 +20,7 @@ from multiprocessing import Process, Pool
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("frames_path", type=str, help="path to frames.")
-    parser.add_argument("--cpu_num", dest="cpu_num", type=int, default=10, help="number of CPU.")
+    # parser.add_argument("--cpu_num", dest="cpu_num", type=int, default=10, help="number of CPU.")
     return parser
 
 
@@ -31,18 +31,20 @@ def chunks(arr, m):
 
 
 if __name__ == "__main__":
+    gpu_list = [3, 4, 5, 6]
     multiprocessing.set_start_method('spawn')
     if not os.path.isdir("../dataset/face_patches"):
         os.mkdir("../dataset/face_patches")
     args = get_parser().parse_args()
     path = args.frames_path
-    cpu_num = args.cpu_num
+    # cpu_num = args.cpu_num
+    cpu_num = len(gpu_list)
     whole_path_list = glob(os.path.join(path, "*.jpg"))
     batch_path_list = chunks(whole_path_list, cpu_num)
     print(len(batch_path_list))
     p = Pool()
     for i in range(cpu_num):
-        p.apply_async(save_face_patches, args=(batch_path_list[i], "../dataset/face_patches", 1.3, i, i))
+        p.apply_async(save_face_patches, args=(batch_path_list[i], "../dataset/face_patches", 1.3, i, gpu_list[i]))
         # p = Process(target=save_face_patches, args=(arg_list, "../dataset/face_patches", 1.3, i, i))
     p.close()
     p.join()
