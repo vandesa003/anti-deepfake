@@ -137,15 +137,15 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
 if __name__ == "__main__":
     import gc
     # ------------------------------------Config Zone----------------------------------------
-    logger = init_logging(log_dir="../logs/", log_file="training.log")
+    logger = init_logging(log_dir="../logs/", log_file="training_patches.log")
     # need to change it!!!
-    device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
-    #os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(device) for device in device_ids])
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
+    os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+    #os.environ["CUDA_VISIBLE_DEVICES"] = "10"
 
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
-    check_point_dir = "../saved_models/"  # checkpoint saving directory.
+    check_point_dir = "../saved_models/patches/"  # checkpoint saving directory.
     model = BinaryXception()  # model architecture.
     # model = nn.DataParallel(model, device_ids=device_ids)
 
@@ -160,12 +160,12 @@ if __name__ == "__main__":
     n_epochs = 20  # number of training epochs.
     batch_size = 96  # number of batch size.
     #import multiprocessing as mp 
-    num_workers = 2 # number of workers
+    num_workers = 3 # number of workers
 
     # -----------train dataset & dataloader-----------------
-    train_data_path = "../dataset/frames/"
-    train_csv = pd.read_csv("../dataset/trn_frames.csv")
-    train_image_list = train_csv["framename"]
+    train_data_path = "../dataset/face_patches/"
+    train_csv = pd.read_csv("../dataset/trn_patches_True_ffhq_False.csv")
+    train_image_list = train_csv["subname"]
     train_label_list = train_csv["label"]
     transformer = train_transformer
     train_dataset = PatchDataset(
@@ -178,8 +178,8 @@ if __name__ == "__main__":
 
     # -------------val dataset & dataloader-----------------
     val_data_path = train_data_path
-    val_csv = pd.read_csv("../dataset/trn_frames.csv")
-    val_image_list = val_csv["framename"]
+    val_csv = pd.read_csv("../dataset/val_patches_True_ffhq_False.csv")
+    val_image_list = val_csv["subname"]
     val_label_list = val_csv["label"]
     transformer = train_transformer
     val_dataset = PatchDataset(
@@ -224,7 +224,7 @@ if __name__ == "__main__":
             best = loss
             logger.info('Saving best model...')
             save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
-            torch.save(model.state_dict(), '../saved_models/model.pth')
+            torch.save(model.state_dict(), '../saved_models/patches/model.pth')
 
-    history.to_csv("../saved_models/train_history.csv", index=False)
-    history2.to_csv("../saved_models/est_history.csv", index=False)
+    history.to_csv("../saved_models/patches/train_history.csv", index=False)
+    history2.to_csv("../saved_models/patches/test_history.csv", index=False)
