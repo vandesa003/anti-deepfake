@@ -6,6 +6,7 @@ Author: Bohang Li
 """
 import os
 import sys
+
 dir_name = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(dir_name, "../"))
 import torch.nn.functional as F
@@ -13,7 +14,7 @@ from tqdm import tqdm
 from modeling.xception import BinaryXception
 from dataloaders.dataset import PatchDataset
 from dataloaders.transformers import train_transformer
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
 from torch import nn
@@ -61,21 +62,21 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     t = tqdm(dataloader)
     for i, data in enumerate(t):
         img_batch = data["image"]
-        y_batch = data["label"]
+        y_batch = data["label"].unsqueeze(1)
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         optimizer.zero_grad()
         out = model(img_batch)
-        loss = criterion1(F.sigmoid(out), y_batch, weight=None)
+        loss = criterion1(torch.sigmoid(out), y_batch, weight=None)
 
         total_loss += loss
-	
+
         t.set_description(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
             optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
         if i % 20 == 0:
             logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
-            optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
-	
+                optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
+
         if history is not None:
             history.loc[epoch + i / batch_size, 'train_loss'] = loss.data.cpu().numpy()
             history.loc[epoch + i / batch_size, 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
@@ -92,25 +93,21 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     model.cuda()
     model.eval()
     loss = 0
-    pred = []
-    real = []
+    real = torch.empty(0, dtype=torch.float)
+    pred = torch.empty(0, dtype=torch.float)
     with torch.no_grad():
         for data in dataloader:
             img_batch = data["image"]
-            y_batch = data["label"]
+            y_batch = data["label"].unsqueeze(1)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
             o1 = model(img_batch)
-            l1 = criterion1(F.sigmoid(o1), y_batch)
+            o1 = torch.sigmoid(o1)
+            l1 = criterion1(o1, y_batch)
             loss += l1
-
-            for j in o1:
-                pred.append(F.sigmoid(j))
-            for i in y_batch:
-                real.append(i.data.cpu())
-
-    pred = [p.data.cpu().numpy() for p in pred]
+            real = torch.cat((real, y_batch.cpu()), dim=0)
+            pred = torch.cat((pred, o1.cpu()), dim=0)
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
@@ -118,7 +115,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     precision = precision_score(real, pred, average="macro")
 
     real = [r.item() for r in real]
-    kaggle = log_loss(real, pred2)
+    kaggle = log_loss(real, pred2, eps=1e-7)
 
     loss /= len(dataloader)
 
@@ -128,7 +125,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     if scheduler is not None:
         scheduler.step(loss)
 
-    logger.info("Dev loss: {0:%.4f}, Recall: {1:%.6f}, Precision: {2:%.6f}, Kaggle: {3:%.6f}"
+    logger.info("Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
                 .format(loss, recall, precision, kaggle))
 
     return loss
@@ -136,13 +133,11 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
 
 if __name__ == "__main__":
     import gc
+
     # ------------------------------------Config Zone----------------------------------------
     logger = init_logging(log_dir="../logs/", log_file="training.log")
     # need to change it!!!
-    device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
-    #os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(device) for device in device_ids])
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
+    device_ids = [i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     check_point_dir = "../saved_models/"  # checkpoint saving directory.
@@ -159,8 +154,7 @@ if __name__ == "__main__":
     best = 1e10
     n_epochs = 20  # number of training epochs.
     batch_size = 96  # number of batch size.
-    #import multiprocessing as mp 
-    num_workers = 2 # number of workers
+    num_workers = 2  # number of workers
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/frames/"
@@ -174,6 +168,11 @@ if __name__ == "__main__":
         train_label_list,
         transform=transformer
     )
+    # ---------------------for quick test-------------------
+    ratio = 0.001
+    split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
+    train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     # -------------val dataset & dataloader-----------------
@@ -188,6 +187,10 @@ if __name__ == "__main__":
         val_label_list,
         transform=transformer
     )
+    # ---------------------for quick test-------------------
+    split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
+    val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
+
     val_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     if use_checkpoint is True:

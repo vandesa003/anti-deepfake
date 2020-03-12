@@ -142,10 +142,7 @@ if __name__ == "__main__":
     logger = init_logging(log_dir="../logs/", log_file="training_patches.log")
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
-    os.environ["CUDA_VISIBLE_DEVICES"] = '3'
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "10"
-
-    use_checkpoint = True  # whether start from a checkpoint.
+    use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     check_point_dir = "../saved_models/patches/"  # checkpoint saving directory.
     model = BinaryXception()  # model architecture.
@@ -176,9 +173,9 @@ if __name__ == "__main__":
         transform=transformer
     )
     # ---------------------for quick test-------------------
-    ratio = 0.001
-    split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
-    train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+    # ratio = 0.001
+    # split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
+    # train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -195,8 +192,8 @@ if __name__ == "__main__":
         transform=transformer
     )
     # ---------------------for quick test-------------------
-    split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
-    val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
+    # split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
+    # val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 

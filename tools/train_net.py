@@ -13,7 +13,7 @@ from tqdm import tqdm
 from modeling.xception import BinaryXception
 from dataloaders.dataset import PatchDataset
 from dataloaders.transformers import train_transformer
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
 from torch import nn
@@ -26,9 +26,10 @@ from utils.logger import init_logging
 import shutil
 
 
-def criterion1(pred1, targets, weight=None):
-    l1 = F.binary_cross_entropy(pred1, targets, weight=weight)
-    return l1
+def criterion1(pred, targets, weight=None):
+    bce_loss = nn.BCELoss(weight=weight, reduction='mean')
+    loss = bce_loss(pred, targets)
+    return loss
 
 
 def save_ckp(state, is_best, checkpoint_dir, best_model_dir):
@@ -61,12 +62,12 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     t = tqdm(dataloader)
     for i, data in enumerate(t):
         img_batch = data["image"]
-        y_batch = data["label"]
+        y_batch = data["label"].unsqueeze(1)
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         optimizer.zero_grad()
         out = model(img_batch)
-        loss = criterion1(F.sigmoid(out), y_batch, weight=None)
+        loss = criterion1(torch.sigmoid(out), y_batch, weight=None)
 
         total_loss += loss
         t.set_description(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
@@ -91,25 +92,22 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     model.cuda()
     model.eval()
     loss = 0
-    pred = []
-    real = []
+    real = torch.empty(0, dtype=torch.float)
+    pred = torch.empty(0, dtype=torch.float)
     with torch.no_grad():
         for data in dataloader:
             img_batch = data["image"]
-            y_batch = data["label"]
+            y_batch = data["label"].unsqueeze(1)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
             o1 = model(img_batch)
-            l1 = criterion1(F.sigmoid(o1), y_batch)
+            o1 = torch.sigmoid(o1)
+            l1 = criterion1(o1, y_batch)
             loss += l1
+            real = torch.cat((real, y_batch.cpu()), dim=0)
+            pred = torch.cat((pred, o1.cpu()), dim=0)
 
-            for j in o1:
-                pred.append(F.sigmoid(j))
-            for i in y_batch:
-                real.append(i.data.cpu())
-
-    pred = [p.data.cpu().numpy() for p in pred]
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
@@ -117,7 +115,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     precision = precision_score(real, pred, average="macro")
 
     real = [r.item() for r in real]
-    kaggle = log_loss(real, pred2)
+    kaggle = log_loss(real, pred2, eps=1e-7)
 
     loss /= len(dataloader)
 
@@ -127,7 +125,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     if scheduler is not None:
         scheduler.step(loss)
 
-    logger.info("Dev loss: {0:%.4f}, Recall: {1:%.6f}, Precision: {2:%.6f}, Kaggle: {3:%.6f}"
+    logger.info("Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
                 .format(loss, recall, precision, kaggle))
 
     return loss
@@ -168,6 +166,11 @@ if __name__ == "__main__":
         train_label_list,
         transform=transformer
     )
+    # ---------------------for quick test-------------------
+    # ratio = 0.001
+    # split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
+    # train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 
     # -------------val dataset & dataloader-----------------
@@ -182,6 +185,10 @@ if __name__ == "__main__":
         val_label_list,
         transform=transformer
     )
+    # ---------------------for quick test-------------------
+    # split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
+    # val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
+
     val_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 
     if use_checkpoint is True:
