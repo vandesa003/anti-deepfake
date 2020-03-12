@@ -137,10 +137,10 @@ if __name__ == "__main__":
     # ------------------------------------Config Zone----------------------------------------
     logger = init_logging(log_dir="../logs/", log_file="training_frames.log")
     # need to change it!!!
-    device_ids = [i for i in range(0, 2)]  # for multi-GPU training.
+    # device_ids = [i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
-    check_point_dir = "../saved_models/"  # checkpoint saving directory.
+    check_point_dir = "../saved_models/frames"  # checkpoint saving directory.
     model = BinaryXception()  # model architecture.
     # model = nn.DataParallel(model, device_ids=device_ids)
 
