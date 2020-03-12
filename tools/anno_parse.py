@@ -1,9 +1,10 @@
 """
-This is for annotation parsing.
+This is for annotation parsing for frame training.
 
-Created On 22th Feb, 2020
-Author: Bohang Li
+Created On 9th March, 2020
+Author: Xiaoyu Yang
 """
+
 import os
 import json
 import pandas as pd
@@ -11,28 +12,22 @@ from glob import glob
 import argparse
 from tqdm import tqdm
 
-
-def merge_json(*args):
-    if len(args) == 0:
-        return None
-    elif len(args) == 1:
-        return args[0]
-    else:
-        res = {}
-        for anno in args:
-            res.update(anno)
-        return res
-
-
-def anno_parse(filename):
+def generate_meta_csv(file_path: str, saving_path: str):
     """
-
-    :param filename:
-    :return:
+    return:
+    foldername, filename, label, original, split
+    used for match with frame info
     """
-    with open(filename, "r") as f:
-        anno = json.loads(f.read())
-    return anno
+    file_list = []
+    for file in tqdm(glob(os.path.join(file_path, "*.csv"))):
+        res_df = pd.read_csv(file)
+        res_df = res_df.transpose().reset_index(drop=False)
+        res_df.columns = ['filename', 'label', 'split', 'original']
+        res_df['foldername'] = file.split('/')[-1].split('.')[0]
+        file_list.append(res_df)
+    file_df = pd.concat(file_list, axis=0).reset_index(drop=True)
+    file_df.to_csv(os.path.join(saving_path, 'meta_df.csv'), index=False)
+    return file_df
 
 
 def _check_name(name: str) -> str:
@@ -45,71 +40,54 @@ def _check_name(name: str) -> str:
     return base
 
 
-def get_bin_label(label_dict: dict, basename: str):
+def get_full_label(file_df, basename: str):
     basename = _check_name(basename)
-    label = label_dict.get(basename, None)
-    if label is None:
+    label = file_df.loc[file_df['filename'] == basename, ]
+    label_value = label["label"].values[0]
+    if len(label) == 0:
         raise ValueError("No such video in the label file!")
-    if label["label"] == "FAKE":
+    if label_value == "FAKE":
         binary_label = 1
-    elif label["label"] == "REAL":
+    elif label_value == "REAL":
         binary_label = 0
     else:
         raise ValueError("label in the label file is wrong!")
-    return binary_label
+    original_video = label["original"].values[0]
+    folder_name = label["foldername"].values[0]
+    return {"label": binary_label, "original": original_video, "foldername": folder_name}
 
 
-def get_full_label(label_dict: dict, basename: str):
-    basename = _check_name(basename)
-    label = label_dict.get(basename, None)
-    if label is None:
-        raise ValueError("No such video in the label file!")
-    if label["label"] == "FAKE":
-        binary_label = 1
-    elif label["label"] == "REAL":
-        binary_label = 0
-    else:
-        raise ValueError("label in the label file is wrong!")
-    original_video = label.get("original", "REAL")
-    return {"label": binary_label, "original": original_video}
-
-
-def generate_label_csv(file_path: str, label_dict: dict, saving_path: str):
-    res_df = pd.DataFrame(columns=["PatchName", "Original", "Label"])
-    patch_name = []
-    original = []
-    label = []
-    for file in tqdm(glob(os.path.join(file_path, "*.jpg"))):
-        basename = os.path.basename(file)
-        try:
-            full_label = get_full_label(label_dict, basename)
-        except ValueError:
-            print("label not found!")
-            continue
-        label.append(full_label["label"])
-        original.append(full_label["original"])
-        patch_name.append(basename)
-    res_df["PatchName"] = patch_name
-    res_df["Original"] = original
-    res_df["Label"] = label
-    res_df.to_csv(os.path.join(saving_path, "face_patch.csv"), index=False)
+def generate_label_csv(file_path: str, file_df, saving_path: str):
+    """
+    Generate the meta file based on frame level
+    :param file_path:
+    :param label_dict:
+    :param saving_path:
+    :return:
+    """
+    framename = []
+    basename = []
+    
+    for file_name in tqdm(glob(os.path.join(file_path, "*.jpg"))):
+        patch = os.path.basename(file_name)
+        base = _check_name(patch)
+        framename.append(patch)
+        basename.append(base)
+    res_df = pd.DataFrame({'subname': framename, 'filename': basename})
+    res_df = res_df.merge(file_df, how = 'left', on = 'filename')
+    # Column: subname,filename,label,split,original,foldername
+    res_df.to_csv(saving_path, index=False)
+    print('The shape of generated label file is: ', res_df.shape)
+    print('The shape of empty info is: ', sum(res_df.label.isna()))
     return res_df
 
 
-def get_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("patch_file", type=str, help="path to patch file.")
-    parser.add_argument("json_file", type=str, help="path to json file.")
-    parser.add_argument("--saving_path", dest="saving_path", type=str, help="saving path of label csv.")
-    return parser
-
-
 if __name__ == "__main__":
-    args = get_parser().parse_args()
-    anno = anno_parse(args.json_file)
-    # anno1 = anno_parse("../dataset/dfdc_train_part_1/metadata.json")
-    # anno = merge_json(anno, anno1)
-    res_df = generate_label_csv(args.patch_file, anno, args.saving_path)
-    print(res_df.groupby("Label").count())
-
-
+    # file_df = generate_meta_csv('../dataset/meta_data/meta_df/', '../dataset/meta_data/')
+    file_df = pd.read_csv('../dataset/meta_data/meta_df.csv')
+    # Generate subfile -> file -> label file for frame level
+    print ('start to process frame data')
+    frame_df = generate_label_csv('../dataset/frames/', file_df, '../dataset/meta_data/frames_ori.csv')
+    # Generate subfile -> file -> label file for face patch level
+    print ('start to process patches data')
+    patch_df = generate_label_csv('../dataset/face_patches/', file_df, '../dataset/meta_data/patches_ori.csv')

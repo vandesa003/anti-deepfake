@@ -54,6 +54,13 @@ cd ./tools/
 python train_net.py
 ```
 
+While using single GPU training please use:
+
+```bash
+cd ./tools/
+CUDA_VISIBLE_DEVICES=1,2,3 python train_net.py
+```
+
 After training, the best model and checkpoints will saved under `./saved_models/model.pth`
 
 ## Inference

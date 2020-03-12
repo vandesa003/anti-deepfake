@@ -22,7 +22,8 @@ def get_parser():
 
 
 def fun(filename):
-    fe = FrameExtractor(filename, extract_fraq=30)
+    fe = FrameExtractor(filename)
+    fe.fixed_frame_extract(frame_num=60, start_frame_idx=10, end_frame_idx=10)
     fe.save(saving_path="../dataset/frames")
 
 
@@ -32,5 +33,12 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
     path = args.video_path
     cpu_num = args.cpu_num
-    video_files = [file for file in glob(os.path.join(path, "*.mp4"))]
-    res = parmap.map(fun, video_files, pm_processes=cpu_num, pm_pbar=True)
+    with os.scandir(path) as entries:
+        for subfile in entries:
+            if subfile.is_file():
+                 continue
+            else:
+                 print('start to process folder %s' %(subfile.name))
+                 file_dir = os.path.join(path, subfile.name)
+                 video_files = [file for file in glob(os.path.join(file_dir, "*.mp4"))]
+                 res = parmap.map(fun, video_files, pm_processes=cpu_num, pm_pbar=True)
