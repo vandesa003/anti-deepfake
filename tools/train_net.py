@@ -140,8 +140,11 @@ if __name__ == "__main__":
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     check_point_dir = "../saved_models/"  # checkpoint saving directory.
+    model_saving_dir = "../saved_models/"
     if not os.path.isdir(check_point_dir):
         os.mkdir(check_point_dir)
+    if not os.path.isdir(model_saving_dir):
+        os.mkdir(model_saving_dir)
     model = BinaryXception()  # model architecture.
     model = nn.DataParallel(model, device_ids=device_ids)
 
@@ -227,7 +230,7 @@ if __name__ == "__main__":
             best = loss
             logger.info('Saving best model...')
             save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
-            torch.save(model.state_dict(), '../saved_models/model.pth')
+            torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
 
-    history.to_csv("../saved_models/train_history.csv", index=False)
-    history2.to_csv("../saved_models/est_history.csv", index=False)
+    history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
+    history2.to_csv(os.path.join(model_saving_dir, "../saved_models/est_history.csv"), index=False)

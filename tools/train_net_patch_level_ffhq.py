@@ -163,7 +163,7 @@ if __name__ == "__main__":
     # ------------dataset and dataloader config.------------
     best = 1e10
     n_epochs = 30  # number of training epochs.
-    batch_size = 96  # number of batch size.
+    batch_size = 64  # number of batch size.
     num_workers = 3  # number of workers
 
     # -----------train dataset & dataloader-----------------

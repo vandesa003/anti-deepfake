@@ -58,6 +58,7 @@ class PatchDatasetFFHQ(Dataset):
         sample = {'image': image, 'label': label}
         return sample
 
+
 class PatchDataset(Dataset):
     def __init__(self, image_name_list, img_folder, label_list=None, transform=None):
         self.image_name_list = image_name_list

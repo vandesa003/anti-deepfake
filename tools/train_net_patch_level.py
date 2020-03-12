@@ -145,8 +145,11 @@ if __name__ == "__main__":
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     check_point_dir = "../saved_models/patches/"  # checkpoint saving directory.
+    model_saving_dir = "../saved_models/patches/"
     if not os.path.isdir(check_point_dir):
         os.mkdir(check_point_dir)
+    if not os.path.isdir(model_saving_dir):
+        os.mkdir(model_saving_dir)
     model = BinaryXception()  # model architecture.
     # model = nn.DataParallel(model, device_ids=device_ids)
 
@@ -159,7 +162,7 @@ if __name__ == "__main__":
     # ------------dataset and dataloader config.------------
     best = 1e10
     n_epochs = 30  # number of training epochs.
-    batch_size = 96  # number of batch size.
+    batch_size = 64  # number of batch size.
     num_workers = 3  # number of workers
 
     # -----------train dataset & dataloader-----------------
@@ -233,7 +236,7 @@ if __name__ == "__main__":
             best = loss
             logger.info('Saving best model...')
             save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
-            torch.save(model.state_dict(), '../saved_models/patches/model.pth')
+            torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
 
-    history.to_csv("../saved_models/patches/train_history.csv", index=False)
-    history2.to_csv("../saved_models/patches/test_history.csv", index=False)
+    history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
+    history2.to_csv(os.path.join(model_saving_dir, "../saved_models/est_history.csv"), index=False)
