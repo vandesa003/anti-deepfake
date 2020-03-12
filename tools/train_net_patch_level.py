@@ -106,14 +106,10 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
 
             o1 = model(img_batch)
             o1 = torch.sigmoid(o1)
-            print(o1.shape)
-            print(y_batch.shape)
             l1 = criterion1(o1, y_batch)
             loss += l1
             real = torch.cat((real, y_batch.cpu()), dim=0)
             pred = torch.cat((pred, o1.cpu()), dim=0)
-    print(pred.shape)
-    print(real.shape)
     # pred = [p.data.cpu().numpy() for p in pred]
     pred2 = pred
     pred = [np.round(p) for p in pred]
@@ -123,7 +119,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     precision = precision_score(real, pred, average="macro")
 
     real = [r.item() for r in real]
-    kaggle = log_loss(real, pred2)
+    kaggle = log_loss(real, pred2, eps=1e-7)
 
     loss /= len(dataloader)
 
@@ -133,7 +129,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     if scheduler is not None:
         scheduler.step(loss)
 
-    logger.info("Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
+    logger.info("evaluation: Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
                 .format(loss, recall, precision, kaggle))
 
     return loss
@@ -149,7 +145,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = '3'
     # os.environ["CUDA_VISIBLE_DEVICES"] = "10"
 
-    use_checkpoint = False  # whether start from a checkpoint.
+    use_checkpoint = True  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     check_point_dir = "../saved_models/patches/"  # checkpoint saving directory.
     model = BinaryXception()  # model architecture.
@@ -163,7 +159,7 @@ if __name__ == "__main__":
 
     # ------------dataset and dataloader config.------------
     best = 1e10
-    n_epochs = 20  # number of training epochs.
+    n_epochs = 30  # number of training epochs.
     batch_size = 96  # number of batch size.
     num_workers = 3  # number of workers
 
