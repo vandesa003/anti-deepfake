@@ -13,7 +13,7 @@ from tqdm import tqdm
 from modeling.xception import BinaryXception
 from dataloaders.dataset import PatchDataset
 from dataloaders.transformers import train_transformer
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
 from torch import nn
@@ -159,8 +159,7 @@ if __name__ == "__main__":
     best = 1e10
     n_epochs = 20  # number of training epochs.
     batch_size = 96  # number of batch size.
-    #import multiprocessing as mp 
-    num_workers = 3 # number of workers
+    num_workers = 3  # number of workers
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/face_patches/"
@@ -174,7 +173,13 @@ if __name__ == "__main__":
         train_label_list,
         transform=transformer
     )
+    # ---------------------for quick test-------------------
+    ratio = 0.001
+    split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
+    train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
 
     # -------------val dataset & dataloader-----------------
     val_data_path = train_data_path
@@ -188,7 +193,11 @@ if __name__ == "__main__":
         val_label_list,
         transform=transformer
     )
-    val_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    # ---------------------for quick test-------------------
+    split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
+    val_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     if use_checkpoint is True:
         if not from_best:
