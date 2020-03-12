@@ -171,9 +171,9 @@ if __name__ == "__main__":
         transform=transformer
     )
     # ---------------------for quick test-------------------
-    ratio = 0.001
-    split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
-    train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+    # ratio = 0.001
+    # split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
+    # train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -190,8 +190,8 @@ if __name__ == "__main__":
         transform=transformer
     )
     # ---------------------for quick test-------------------
-    split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
-    val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
+    # split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
+    # val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
     val_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
