@@ -92,8 +92,8 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     model.cuda()
     model.eval()
     loss = 0
-    pred = []
-    real = []
+    real = torch.empty(0, dtype=torch.long)
+    pred = torch.empty(0, dtype=torch.float)
     with torch.no_grad():
         for data in dataloader:
             img_batch = data["image"]
@@ -102,20 +102,21 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
             y_batch = y_batch.cuda().float()
 
             o1 = model(img_batch)
-            l1 = criterion1(F.sigmoid(o1), y_batch)
+            o1 = F.sigmoid(o1)
+            l1 = criterion1(o1, y_batch)
             loss += l1
+            real = torch.cat((real, y_batch), dim=0)
+            pred = torch.cat((pred, o1), dim=0)
 
-            for j in o1:
-                pred.append(F.sigmoid(j))
-            for i in y_batch:
-                real.append(i.data.cpu().numpy())
-
-    pred = [p.data.cpu().numpy() for p in pred]
+    # pred = [p.data.cpu().numpy() for p in pred]
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
+    real = np.array(real)
     print("pred: {}".format(pred))
     print("real: {}".format(real))
+    print("pred: {}".format(pred.shape))
+    print("real: {}".format(real.shape))
     recall = recall_score(real, pred, average='macro')
     precision = precision_score(real, pred, average="macro")
 
