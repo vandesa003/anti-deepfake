@@ -210,9 +210,9 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=None)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger)
 
-        loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=None, logger=None)
+        loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=None, logger=logger)
 
         checkpoint = {
             'epoch': epoch + 1,

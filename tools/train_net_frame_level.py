@@ -135,7 +135,7 @@ if __name__ == "__main__":
     import gc
 
     # ------------------------------------Config Zone----------------------------------------
-    logger = init_logging(log_dir="../logs/", log_file="training.log")
+    logger = init_logging(log_dir="../logs/", log_file="training_frames.log")
     # need to change it!!!
     device_ids = [i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
@@ -212,9 +212,9 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=None)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger)
 
-        loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=None, logger=None)
+        loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=history2, logger=logger)
 
         checkpoint = {
             'epoch': epoch + 1,
