@@ -145,6 +145,8 @@ if __name__ == "__main__":
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     check_point_dir = "../saved_models/patches/"  # checkpoint saving directory.
+    if not os.path.isdir(check_point_dir):
+        os.mkdir(check_point_dir)
     model = BinaryXception()  # model architecture.
     # model = nn.DataParallel(model, device_ids=device_ids)
 
