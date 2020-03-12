@@ -195,7 +195,7 @@ if __name__ == "__main__":
     )
     # ---------------------for quick test-------------------
     split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
-    val_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+    val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
