@@ -6,6 +6,7 @@ Author: Bohang Li
 """
 import os
 import sys
+
 dir_name = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(dir_name, "../"))
 import torch.nn.functional as F
@@ -26,9 +27,11 @@ from utils.logger import init_logging
 import shutil
 
 
-def criterion1(pred1, targets, weight=None):
-    l1 = F.binary_cross_entropy(pred1, targets, weight=weight)
-    return l1
+def criterion1(pred, targets, weight=None):
+    # l1 = F.binary_cross_entropy(pred, targets, weight=weight)
+    bce_loss = nn.BCELoss(weight=weight, reduction='mean')
+    loss = bce_loss(pred, targets)
+    return loss
 
 
 def save_ckp(state, is_best, checkpoint_dir, best_model_dir):
@@ -69,13 +72,13 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
         loss = criterion1(F.sigmoid(out), y_batch, weight=None)
 
         total_loss += loss
-	
+
         t.set_description(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
             optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
         if i % 20 == 0:
             logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
-            optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
-	
+                optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
+
         if history is not None:
             history.loc[epoch + i / batch_size, 'train_loss'] = loss.data.cpu().numpy()
             history.loc[epoch + i / batch_size, 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
@@ -131,7 +134,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     if scheduler is not None:
         scheduler.step(loss)
 
-    logger.info("Dev loss: {0:%.4f}, Recall: {1:%.6f}, Precision: {2:%.6f}, Kaggle: {3:%.6f}"
+    logger.info("Dev loss: {:%.4f}, Recall: {:%.6f}, Precision: {:%.6f}, Kaggle: {:%.6f}"
                 .format(loss, recall, precision, kaggle))
 
     return loss
@@ -139,12 +142,13 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
 
 if __name__ == "__main__":
     import gc
+
     # ------------------------------------Config Zone----------------------------------------
     logger = init_logging(log_dir="../logs/", log_file="training_patches.log")
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     os.environ["CUDA_VISIBLE_DEVICES"] = '3'
-    #os.environ["CUDA_VISIBLE_DEVICES"] = "10"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "10"
 
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
@@ -182,7 +186,6 @@ if __name__ == "__main__":
     train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-
 
     # -------------val dataset & dataloader-----------------
     val_data_path = train_data_path
