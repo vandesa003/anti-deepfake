@@ -114,6 +114,8 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
+    print("pred: {}".format(pred))
+    print("real: {}".format(real))
     recall = recall_score(real, pred, average='macro')
     precision = precision_score(real, pred, average="macro")
 
