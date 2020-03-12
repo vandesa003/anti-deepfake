@@ -92,7 +92,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     model.cuda()
     model.eval()
     loss = 0
-    real = torch.empty(0, dtype=torch.long)
+    real = torch.empty(0, dtype=torch.float)
     pred = torch.empty(0, dtype=torch.float)
     with torch.no_grad():
         for data in dataloader:
