@@ -100,7 +100,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     with torch.no_grad():
         for data in dataloader:
             img_batch = data["image"]
-            y_batch = data["label"].unsqueeze(0)
+            y_batch = data["label"].unsqueeze(1)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
