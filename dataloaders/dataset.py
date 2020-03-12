@@ -34,6 +34,30 @@ def has_file_allowed_extension(filename, extensions):
     return filename.lower().endswith(extensions)
 
 
+class PatchDatasetFFHQ(Dataset):
+    def __init__(self, image_name_list, img_folder_list, label_list=None, transform=None):
+        self.image_name_list = image_name_list
+        self.label_name_list = label_list
+        self.img_folder_list = img_folder_list
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_name_list)
+
+    def __getitem__(self, idx):
+        image = cv2.imread(os.path.join(self.img_folder_list[idx], self.image_name_list[idx]))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        trans = Compose([Blur(p=0.3), JpegCompression(p=0.2)])
+        image = trans(image=image)["image"]
+        if self.transform:
+            image = self.transform(image)
+        if self.label_name_list is not None:
+            label = self.label_name_list[idx]
+        else:
+            label = 0
+        sample = {'image': image, 'label': label}
+        return sample
+
 class PatchDataset(Dataset):
     def __init__(self, image_name_list, img_folder, label_list=None, transform=None):
         self.image_name_list = image_name_list
