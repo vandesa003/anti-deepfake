@@ -134,7 +134,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     if scheduler is not None:
         scheduler.step(loss)
 
-    logger.info("Dev loss: {:%.4f}, Recall: {:%.6f}, Precision: {:%.6f}, Kaggle: {:%.6f}"
+    logger.info("Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
                 .format(loss, recall, precision, kaggle))
 
     return loss
