@@ -100,7 +100,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     with torch.no_grad():
         for data in dataloader:
             img_batch = data["image"]
-            y_batch = data["label"]
+            y_batch = data["label"].unsqueeze(1)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
@@ -110,16 +110,13 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
             loss += l1
             real = torch.cat((real, y_batch.cpu()), dim=0)
             pred = torch.cat((pred, o1.cpu()), dim=0)
-
+    print(pred.shape)
+    print(real.shape)
     # pred = [p.data.cpu().numpy() for p in pred]
     pred2 = pred
     pred = [np.round(p) for p in pred]
     pred = np.array(pred)
     real = np.array(real)
-    print("pred: {}".format(pred))
-    print("real: {}".format(real))
-    print("pred: {}".format(pred.shape))
-    print("real: {}".format(real.shape))
     recall = recall_score(real, pred, average='macro')
     precision = precision_score(real, pred, average="macro")
 
@@ -224,9 +221,9 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=None)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger)
 
-        loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=None, logger=None)
+        loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=history2, logger=logger)
 
         checkpoint = {
             'epoch': epoch + 1,
