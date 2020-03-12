@@ -108,7 +108,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
             for j in o1:
                 pred.append(F.sigmoid(j))
             for i in y_batch:
-                real.append(i.data.cpu())
+                real.append(i.data.cpu().numpy())
 
     pred = [p.data.cpu().numpy() for p in pred]
     pred2 = pred
