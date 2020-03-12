@@ -100,12 +100,12 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     with torch.no_grad():
         for data in dataloader:
             img_batch = data["image"]
-            y_batch = data["label"]
+            y_batch = data["label"].unsqueeze(0)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
             o1 = model(img_batch)
-            o1 = torch.sigmoid(o1).unsqueeze(1)
+            o1 = torch.sigmoid(o1)
             print(o1.shape)
             print(y_batch.shape)
             l1 = criterion1(o1, y_batch)
