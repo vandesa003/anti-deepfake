@@ -105,8 +105,8 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
             o1 = F.sigmoid(o1)
             l1 = criterion1(o1, y_batch)
             loss += l1
-            real = torch.cat((real, y_batch), dim=0)
-            pred = torch.cat((pred, o1), dim=0)
+            real = torch.cat((real, y_batch.cpu()), dim=0)
+            pred = torch.cat((pred, o1.cpu()), dim=0)
 
     # pred = [p.data.cpu().numpy() for p in pred]
     pred2 = pred
