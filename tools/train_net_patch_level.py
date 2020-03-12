@@ -64,7 +64,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     t = tqdm(dataloader)
     for i, data in enumerate(t):
         img_batch = data["image"]
-        y_batch = data["label"]
+        y_batch = data["label"].unsqueeze(1)
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         optimizer.zero_grad()
