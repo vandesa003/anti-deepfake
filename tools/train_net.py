@@ -81,6 +81,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
         loss.backward()
         if i % accumulation_steps == 0:
             optimizer.step()
+            optimizer.zero_grad()
             logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
                 optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
 
