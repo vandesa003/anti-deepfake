@@ -27,6 +27,7 @@ from sklearn.metrics import log_loss, recall_score, precision_score
 from utils.logger import init_logging
 import shutil
 import math
+import argparse
 
 
 def criterion1(pred, targets, weight=None):
@@ -139,37 +140,59 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     return loss
 
 
+def get_parser():
+    parser = argparse.ArgumentParser("anti-deepfake")
+    parser.add_argument("--model_saving_dir", dest="model_saving_dir", type=str,
+                        default="../saved_models/patches_ffhqs_ResNext/")
+    parser.add_argument("--log_file", dest="log_file", type=str, default="training_patches_ffhq_ResNext.log")
+    parser.add_argument("--batch_size", dest="batch_size", type=int, default=64)
+    parser.add_argument("--model", dest=model, type=str, default="Xception")
+    parser.add_argument("--n_epochs", dest="n_epochs", type=int, default=30)
+    parser.add_argument("--use_checkpoint", dest="use_checkpoint", type=int, default=0)
+    parser.add_argument("--base_lr", dest="base_lr", type=float, default=0.02)
+    parser.add_argument("--acc_steps", dest="acc_steps", type=int, default=8)
+    parser.add_argument("--quick_test", dest="quick_test", type=int, default=0)
+    return parser
+
+
 if __name__ == "__main__":
     import gc
-
+    args = get_parser().parse_args()
     # ------------------------------------Config Zone----------------------------------------
-    check_point_dir = "../saved_models/patches_ffhqs_ResNext/"  # checkpoint saving directory.
+    check_point_dir = args.model_saving_dir  # checkpoint saving directory.
     model_saving_dir = check_point_dir
-    log_file = "training_patches_ffhq_ResNext.log"
+    log_file = args.log_file
     logger = init_logging(log_dir="../logs/", log_file=log_file)
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
-    use_checkpoint = False  # whether start from a checkpoint.
+    if args.use_checkpoint == 0:
+        use_checkpoint = True
+    else:
+        use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     if not os.path.isdir(model_saving_dir):
         os.mkdir(model_saving_dir)
     if not os.path.isdir(check_point_dir):
         os.mkdir(check_point_dir)
-    # model = BinaryXception()  # model architecture.
-    model = ResNext101()  # model architecture.
+    if "resnext" in args.model.lower():
+        model = ResNext101()  # model architecture.
+    elif "xception" in args.model.lower():
+        model = BinaryXception()  # model architecture.
+    else:
+        raise ValueError("model is not implemented yet!")
     # model = nn.DataParallel(model, device_ids=device_ids)
 
     # -------------------optimizer config.------------------
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
-        lr=0.02
+        lr=args.base_lr
     )
-    acc_steps = 8  # used for accumulate loss. must be divisible by number of batches.
+    acc_steps = args.acc_steps  # used for accumulate loss. must be divisible by number of batches.
 
     # ------------dataset and dataloader config.------------
     best = 1e10
-    n_epochs = 30  # number of training epochs.
-    batch_size = 64  # number of batch size.
+    n_epochs = args.n_epochs  # number of training epochs.
+    batch_size = args.batch_size  # number of batch size.
     num_workers = 0  # number of workers
 
     # -----------train dataset & dataloader-----------------
@@ -186,9 +209,10 @@ if __name__ == "__main__":
         transform=transformer
     )
     # ---------------------for quick test-------------------
-    # ratio = 0.001
-    # split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
-    # train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
+    if args.quick_test != 0:
+        ratio = 0.001
+        split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
+        train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -206,8 +230,9 @@ if __name__ == "__main__":
         transform=transformer
     )
     # ---------------------for quick test-------------------
-    # split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
-    # val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
+    if args.quick_test != 0:
+        split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
+        val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
