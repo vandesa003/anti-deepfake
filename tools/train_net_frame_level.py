@@ -59,7 +59,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     model.train()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=300, mode='min',
-        factor=0.7, verbose=True, min_lr=1e-9
+        factor=0.7, verbose=True, min_lr=1e-5
     )
     total_loss = 0
     # Need to change here!
