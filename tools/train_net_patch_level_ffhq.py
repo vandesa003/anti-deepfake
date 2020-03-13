@@ -164,13 +164,13 @@ if __name__ == "__main__":
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=0.02
     )
-    acc_steps = 18  # used for accumulate loss. must be divisible by number of batches.
+    acc_steps = 8  # used for accumulate loss. must be divisible by number of batches.
 
     # ------------dataset and dataloader config.------------
     best = 1e10
     n_epochs = 30  # number of training epochs.
     batch_size = 64  # number of batch size.
-    num_workers = 3  # number of workers
+    num_workers = 0  # number of workers
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/face_patches/"
