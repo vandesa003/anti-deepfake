@@ -143,7 +143,7 @@ def get_parser():
                         default="../saved_models/patches_frame/")
     parser.add_argument("--log_file", dest="log_file", type=str, default="training_frame.log")
     parser.add_argument("--batch_size", dest="batch_size", type=int, default=64)
-    parser.add_argument("--model", dest=model, type=str, default="Xception")
+    parser.add_argument("--model", dest="model", type=str, default="Xception")
     parser.add_argument("--n_epochs", dest="n_epochs", type=int, default=30)
     parser.add_argument("--use_checkpoint", dest="use_checkpoint", type=int, default=0)
     parser.add_argument("--base_lr", dest="base_lr", type=float, default=0.02)
