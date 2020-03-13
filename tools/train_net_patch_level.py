@@ -145,8 +145,8 @@ if __name__ == "__main__":
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
-    check_point_dir = "../saved_models/patches/ResNext"  # checkpoint saving directory.
-    model_saving_dir = "../saved_models/patches/ResNext"
+    check_point_dir = "../saved_models/patches_ResNext"  # checkpoint saving directory.
+    model_saving_dir = "../saved_models/patches_ResNext"
     if not os.path.isdir(check_point_dir):
         os.mkdir(check_point_dir)
     if not os.path.isdir(model_saving_dir):
