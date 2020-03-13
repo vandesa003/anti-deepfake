@@ -31,7 +31,7 @@ import math
 
 def criterion1(pred, targets, weight=None):
     # l1 = F.binary_cross_entropy(pred, targets, weight=weight)
-    bce_loss = nn.BCELoss(weight=weight, reduction='mean')
+    bce_loss = nn.BCEWithLogitsLoss(weight=weight, reduction='mean')
     loss = bce_loss(pred, targets)
     return loss
 
@@ -71,7 +71,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         out = model(img_batch)
-        loss = criterion1(torch.sigmoid(out), y_batch, weight=None)
+        loss = criterion1(out, y_batch, weight=None)
 
         total_loss += loss
 
@@ -109,8 +109,8 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
             y_batch = y_batch.cuda().float()
 
             o1 = model(img_batch)
-            o1 = torch.sigmoid(o1)
             l1 = criterion1(o1, y_batch)
+            o1 = torch.sigmoid(o1)
             loss += l1
             real = torch.cat((real, y_batch.cpu()), dim=0)
             pred = torch.cat((pred, o1.cpu()), dim=0)
