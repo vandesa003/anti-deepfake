@@ -163,9 +163,9 @@ if __name__ == "__main__":
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     if args.use_checkpoint == 0:
-        use_checkpoint = True
+        use_checkpoint = False
     else:
-        use_checkpoint = False  # whether start from a checkpoint.
+        use_checkpoint = True  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     if not os.path.isdir(model_saving_dir):
         os.mkdir(model_saving_dir)
