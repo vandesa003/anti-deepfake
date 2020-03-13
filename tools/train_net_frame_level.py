@@ -26,11 +26,13 @@ import sklearn
 from sklearn.metrics import log_loss, recall_score, precision_score
 from utils.logger import init_logging
 import shutil
+import math
 
 
-def criterion1(pred1, targets, weight=None):
-    l1 = F.binary_cross_entropy(pred1, targets, weight=weight)
-    return l1
+def criterion1(pred, targets, weight=None):
+    bce_loss = nn.BCELoss(weight=weight, reduction='mean')
+    loss = bce_loss(pred, targets)
+    return loss
 
 
 def save_ckp(state, is_best, checkpoint_dir, best_model_dir):
@@ -49,7 +51,7 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     return model, optimizer, checkpoint['epoch']
 
 
-def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=None):
+def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=None, accumulation_steps=18):
     if logger is None:
         logger = init_logging(log_dir="../logs/", log_file="training.log", log_level="error")
     model.cuda()
@@ -61,12 +63,12 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     total_loss = 0
     # Need to change here!
     t = tqdm(dataloader)
+    optimizer.zero_grad()
     for i, data in enumerate(t):
         img_batch = data["image"]
         y_batch = data["label"].unsqueeze(1)
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
-        optimizer.zero_grad()
         out = model(img_batch)
         loss = criterion1(torch.sigmoid(out), y_batch, weight=None)
 
@@ -74,7 +76,11 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
 
         t.set_description(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
             optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
-        if i % 20 == 0:
+
+        loss = loss / accumulation_steps
+        loss.backward()
+        if i % accumulation_steps == 0:
+            optimizer.step()
             logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
                 optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
 
@@ -82,8 +88,6 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
             history.loc[epoch + i / batch_size, 'train_loss'] = loss.data.cpu().numpy()
             history.loc[epoch + i / batch_size, 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
 
-        loss.backward()
-        optimizer.step()
         if scheduler is not None:
             scheduler.step(total_loss)
 
@@ -126,7 +130,7 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     if scheduler is not None:
         scheduler.step(loss)
 
-    logger.info("Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
+    logger.info("evaluation: Dev loss: {0:.4f}, Recall: {1:.6f}, Precision: {2:.6f}, Kaggle: {3:.6f}"
                 .format(loss, recall, precision, kaggle))
 
     return loss
@@ -136,13 +140,14 @@ if __name__ == "__main__":
     import gc
 
     # ------------------------------------Config Zone----------------------------------------
-    logger = init_logging(log_dir="../logs/", log_file="training_frames_ResNext.log")
+    check_point_dir = "../saved_models/frames_ResNext"  # checkpoint saving directory.
+    model_saving_dir = "../saved_models/frames_ResNext"
+    log_file = "training_frames_ResNext.log"
+    logger = init_logging(log_dir="../logs/", log_file=log_file)
     # need to change it!!!
     # device_ids = [i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
-    check_point_dir = "../saved_models/frames_ResNext"  # checkpoint saving directory.
-    model_saving_dir = "../saved_models/frames_ResNext"
     if not os.path.isdir(check_point_dir):
         os.mkdir(check_point_dir)
     if not os.path.isdir(model_saving_dir):
@@ -156,12 +161,13 @@ if __name__ == "__main__":
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=0.02
     )
+    acc_steps = 18  # used for accumulate loss. must be divisible by number of batches.
 
     # ------------dataset and dataloader config.------------
     best = 1e10
     n_epochs = 20  # number of training epochs.
     batch_size = 16  # number of batch size.
-    num_workers = 3  # number of workers
+    num_workers = 0  # number of workers
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/frames/"
@@ -198,7 +204,20 @@ if __name__ == "__main__":
     # split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
     # val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
-    val_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    num_batches = math.ceil(len(train_dataset) / n_epochs)
+    logger.info(
+        """
+        --------------------Config-----------------
+        n_epochs={0}, batch_size={1}, acc_steps={2}, 
+        num_of_batches={3}, acc_steps_divisible={4},
+        model_saving_dir={5}
+        checkpoint_dir={6}
+        logfile={7}
+        """.format(n_epochs, batch_size, acc_steps, num_batches, num_batches / acc_steps,
+                   model_saving_dir, check_point_dir, log_file)
+    )
 
     if use_checkpoint is True:
         if not from_best:
@@ -219,7 +238,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger, accumulation_steps=acc_steps)
 
         loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=history2, logger=logger)
 
@@ -237,4 +256,4 @@ if __name__ == "__main__":
             torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
 
     history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
-    history2.to_csv(os.path.join(model_saving_dir, "../saved_models/est_history.csv"), index=False)
+    history2.to_csv(os.path.join(model_saving_dir, "test_history.csv"), index=False)

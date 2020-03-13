@@ -146,7 +146,7 @@ if __name__ == "__main__":
     check_point_dir = "../saved_models/patches_ResNext"  # checkpoint saving directory.
     model_saving_dir = "../saved_models/patches_ResNext"
     log_file = "training_patches_ResNext.log"
-    logger = init_logging(log_dir="../logs/", log_file="training_patches_ResNext.log")
+    logger = init_logging(log_dir="../logs/", log_file=log_file)
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger, accumulation_steps=acc_steps)
 
         loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=history2, logger=logger)
 
@@ -259,4 +259,4 @@ if __name__ == "__main__":
             torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
 
     history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
-    history2.to_csv(os.path.join(model_saving_dir, "../saved_models/est_history.csv"), index=False)
+    history2.to_csv(os.path.join(model_saving_dir, "test_history.csv"), index=False)
