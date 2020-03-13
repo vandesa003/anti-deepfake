@@ -13,3 +13,12 @@ class ResNext101(nn.Module):
 
     def forward(self, x):
         return self.base(x)
+
+
+class ResNet50(nn.Module):
+    def __init__(self):
+        super(ResNet50).__init__()
+        model = models.resnet50(pretrained=True)
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, 1)
+        self.base = model

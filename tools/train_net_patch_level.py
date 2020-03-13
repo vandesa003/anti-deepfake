@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(dir_name, "../"))
 import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
+from modeling.ResNet import ResNet50, ResNext101
 from dataloaders.dataset import PatchDataset
 from dataloaders.transformers import train_transformer
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -57,7 +58,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     model.train()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=300, mode='min',
-        factor=0.7, verbose=True, min_lr=1e-5
+        factor=0.7, verbose=True, min_lr=1e-9
     )
     total_loss = 0
     # Need to change here!
@@ -139,18 +140,19 @@ if __name__ == "__main__":
     import gc
 
     # ------------------------------------Config Zone----------------------------------------
-    logger = init_logging(log_dir="../logs/", log_file="training_patches.log")
+    logger = init_logging(log_dir="../logs/", log_file="training_patches_ResNext.log")
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     use_checkpoint = False  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
-    check_point_dir = "../saved_models/patches/"  # checkpoint saving directory.
-    model_saving_dir = "../saved_models/patches/"
+    check_point_dir = "../saved_models/patches/ResNext"  # checkpoint saving directory.
+    model_saving_dir = "../saved_models/patches/ResNext"
     if not os.path.isdir(check_point_dir):
         os.mkdir(check_point_dir)
     if not os.path.isdir(model_saving_dir):
         os.mkdir(model_saving_dir)
-    model = BinaryXception()  # model architecture.
+    # model = BinaryXception()  # model architecture.
+    model = ResNext101()  # model architecture.
     # model = nn.DataParallel(model, device_ids=device_ids)
 
     # -------------------optimizer config.------------------

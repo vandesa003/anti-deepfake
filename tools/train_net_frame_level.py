@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(dir_name, "../"))
 import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
+from modeling.ResNet import ResNet50, ResNext101
 from dataloaders.dataset import PatchDataset
 from dataloaders.transformers import train_transformer
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -55,7 +56,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     model.train()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=300, mode='min',
-        factor=0.7, verbose=True, min_lr=1e-5
+        factor=0.7, verbose=True, min_lr=1e-9
     )
     total_loss = 0
     # Need to change here!
@@ -146,7 +147,8 @@ if __name__ == "__main__":
         os.mkdir(check_point_dir)
     if not os.path.isdir(model_saving_dir):
         os.mkdir(model_saving_dir)
-    model = BinaryXception()  # model architecture.
+    # model = BinaryXception()  # model architecture.
+    model = ResNext101()  # model architecture.
     # model = nn.DataParallel(model, device_ids=device_ids)
 
     # -------------------optimizer config.------------------
