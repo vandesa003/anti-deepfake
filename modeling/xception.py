@@ -36,13 +36,13 @@ class Head(nn.Module):
 
 
 class BinaryXception(nn.Module):
-    def __init__(self):
+    def __init__(self, pretrained=True):
         """
 
         :param in_f: default 2048.
         """
         super(BinaryXception, self).__init__()
-        model = get_model("xception", pretrained=True)
+        model = get_model("xception", pretrained=pretrained)
         # model = get_model("resnet18", pretrained=True)
         model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
         self.base = model
