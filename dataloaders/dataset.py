@@ -47,8 +47,8 @@ class PatchDatasetFFHQ(Dataset):
     def __getitem__(self, idx):
         image = cv2.imread(os.path.join(self.img_folder_list[idx], self.image_name_list[idx]))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        trans = Compose([Blur(p=0.3), JpegCompression(p=0.2)])
-        image = trans(image=image)["image"]
+        # trans = Compose([Blur(p=0.3), JpegCompression(p=0.2)])
+        # image = trans(image=image)["image"]
         if self.transform:
             image = self.transform(image)
         if self.label_name_list is not None:
@@ -72,8 +72,8 @@ class PatchDataset(Dataset):
     def __getitem__(self, idx):
         image = cv2.imread(os.path.join(self.img_folder, self.image_name_list[idx]))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        trans = Compose([Blur(p=0.3), JpegCompression(p=0.2)])
-        image = trans(image=image)["image"]
+        # trans = Compose([Blur(p=0.3), JpegCompression(p=0.2)])
+        # image = trans(image=image)["image"]
         if self.transform:
             image = self.transform(image)
         if self.label_name_list is not None:

@@ -30,7 +30,12 @@ val_transformer = transforms.Compose([
 ])
 
 # TODO: infer_transform !!!
-
+infer_transformer = transforms.Compose([
+    ToPILImage(),
+    Resize((300, 300)),
+    ToTensor(),
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
 """
 Segmentation Transformer/Pixel-level task transformer.
 """
