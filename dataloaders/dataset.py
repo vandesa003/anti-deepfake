@@ -34,6 +34,31 @@ def has_file_allowed_extension(filename, extensions):
     return filename.lower().endswith(extensions)
 
 
+class ConcatDataset(Dataset):
+    def __init__(self, image_folder, transform=None):
+        self.image_folder = image_folder
+        self.transform = transform
+        samples = []
+        for path in os.listdir(image_folder):
+            if has_file_allowed_extension(path, IMG_EXTENSIONS):
+                label = path.split("_")[-1].split(".")[0]
+                img_path = os.path.join(image_folder, path)
+                samples.append(img_path, int(label))
+        self.samples = samples
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, item):
+        img_path, label = self.samples[item]
+        image = cv2.imread(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            image = self.transform(image)
+        sample = (image, label)
+        return sample
+
+
 class PatchDatasetFFHQ(Dataset):
     def __init__(self, image_name_list, img_folder_list, label_list=None, transform=None):
         self.image_name_list = image_name_list

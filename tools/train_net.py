@@ -12,8 +12,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
 from modeling.ResNet import ResNet50, ResNext101
-from dataloaders.dataset import PatchDataset
-from dataloaders.transformers import train_transformer
+from modeling.head3d import Xception3DNet
+from dataloaders.dataset import PatchDataset, ConcatDataset
+from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm
 from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
@@ -176,6 +177,8 @@ if __name__ == "__main__":
         model = ResNext101()  # model architecture.
     elif "xception" in args.model.lower():
         model = BinaryXception()  # model architecture.
+    elif "video" in args.model.lower():
+        model = Xception3DNet()
     else:
         raise ValueError("model is not implemented yet!")
     # model = nn.DataParallel(model, device_ids=device_ids)
@@ -194,15 +197,14 @@ if __name__ == "__main__":
     num_workers = 0  # number of workers
 
     # -----------train dataset & dataloader-----------------
-    train_data_path = "../dataset/frames/"
-    train_csv = pd.read_csv("../dataset/trn_frames.csv")
-    train_image_list = train_csv["framename"]
-    train_label_list = train_csv["label"]
-    transformer = train_transformer
-    train_dataset = PatchDataset(
-        train_image_list,
-        train_data_path,
-        train_label_list,
+    train_data_path = "../dataset/video_img/train"
+
+    # train_csv = pd.read_csv("../dataset/trn_frames.csv")
+    # train_image_list = train_csv["framename"]
+    # train_label_list = train_csv["label"]
+    transformer = transforms.Compose([RandomHFlip(0.5), MinMaxNorm(), VideoToTensor()])
+    train_dataset = ConcatDataset(
+        image_folder=train_data_path,
         transform=transformer
     )
     # ---------------------for quick test-------------------
@@ -211,18 +213,19 @@ if __name__ == "__main__":
         split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
         train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True,
+        collate_fn=video_collate_fn, num_workers=num_workers
+    )
 
     # -------------val dataset & dataloader-----------------
-    val_data_path = train_data_path
-    val_csv = pd.read_csv("../dataset/trn_frames.csv")
-    val_image_list = val_csv["framename"]
-    val_label_list = val_csv["label"]
-    transformer = train_transformer
-    val_dataset = PatchDataset(
-        val_image_list,
-        val_data_path,
-        val_label_list,
+    val_data_path = "../dataset/video_img/val"
+    # val_csv = pd.read_csv("../dataset/trn_frames.csv")
+    # val_image_list = val_csv["framename"]
+    # val_label_list = val_csv["label"]
+    transformer = transforms.Compose([MinMaxNorm(), VideoToTensor()])
+    val_dataset = ConcatDataset(
+        image_folder=val_data_path,
         transform=transformer
     )
     # ---------------------for quick test-------------------
