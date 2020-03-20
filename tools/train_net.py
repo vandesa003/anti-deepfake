@@ -66,8 +66,8 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     t = tqdm(dataloader)
     optimizer.zero_grad()
     for i, data in enumerate(t):
-        img_batch = data["image"]
-        y_batch = data["label"].unsqueeze(1)
+        img_batch = data[0]
+        y_batch = data[1].unsqueeze(1)
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         out = model(img_batch)
@@ -104,8 +104,8 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     pred = torch.empty(0, dtype=torch.float)
     with torch.no_grad():
         for data in dataloader:
-            img_batch = data["image"]
-            y_batch = data["label"].unsqueeze(1)
+            img_batch = data[0]
+            y_batch = data[1].unsqueeze(1)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,
-        collate_fn=video_collate_fn, num_workers=num_workers
+        collate_fn=video_collate_fn, num_workers=num_workers, pin_memory=True
     )
 
     # -------------val dataset & dataloader-----------------
@@ -233,7 +233,10 @@ if __name__ == "__main__":
         split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
         val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    val_dataloader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False,
+        collate_fn=video_collate_fn, num_workers=num_workers, pin_memory=True
+    )
 
     num_batches = math.ceil(len(train_dataset) / n_epochs)
     logger.info(
