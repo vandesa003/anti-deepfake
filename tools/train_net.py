@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
 from modeling.ResNet import ResNet50, ResNext101
-from modeling.head3d import Xception3DNet
+from modeling.head3d import Xception3DNet, ResNet3DNet
 from dataloaders.dataset import PatchDataset, ConcatDataset
 from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     elif "xception" in args.model.lower():
         model = BinaryXception()  # model architecture.
     elif "video" in args.model.lower():
-        model = Xception3DNet()
+        model = ResNet3DNet()
     else:
         raise ValueError("model is not implemented yet!")
     # model = nn.DataParallel(model, device_ids=device_ids)

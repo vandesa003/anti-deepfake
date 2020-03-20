@@ -95,6 +95,24 @@ class Xception3DNet(nn.Module):
         return x
 
 
+class ResNet3DNet(nn.Module):
+    def __init__(self, feat_h=1, feat_w=1, frame_num=10):
+        super(ResNet3DNet, self).__init__()
+        model = ResNet50()
+        self.feat_h = feat_h
+        self.feat_w = feat_w
+        self.frame_num = frame_num
+        self.model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
+        self.head = Head3D(in_ch=2048, out_ch=128, feat_h=feat_h, feat_w=feat_w, frame_num=frame_num)
+
+    def forward(self, x):
+        x = self.model(x)  # output 4-d
+        # TODO: Check whether this is right! from 4d to 5d!
+        x = x.view((-1, 2048, self.frame_num, self.feat_h, self.feat_w))
+        x = self.head(x)  # input 5-d
+        return x
+
+
 class XceptionDNN(nn.Module):
     def __init__(self, feat_h=1, feat_w=1, frame_num=10):
         super(XceptionDNN, self).__init__()
