@@ -43,7 +43,7 @@ class ConcatDataset(Dataset):
             if has_file_allowed_extension(path, IMG_EXTENSIONS):
                 label = path.split("_")[-1].split(".")[0]
                 img_path = os.path.join(image_folder, path)
-                samples.append(img_path, int(label))
+                samples.append((img_path, int(label)))
         self.samples = samples
 
     def __len__(self):
