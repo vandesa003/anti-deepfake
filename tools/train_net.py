@@ -28,6 +28,7 @@ from utils.logger import init_logging
 import shutil
 import math
 import argparse
+from torch.utils.tensorboard import SummaryWriter
 
 
 def criterion1(pred, targets, weight=None):
@@ -58,7 +59,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
     model.cuda()
     model.train()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=300, mode='min',
+        optimizer, patience=10, mode='min',
         factor=0.7, verbose=True, min_lr=1e-5
     )
     total_loss = 0
@@ -85,6 +86,7 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
             optimizer.zero_grad()
             logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
                 optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
+            writer.add_scalar("Loss/loss_total", total_loss / (i + 1), epoch * (i + 1))
 
         if history is not None:
             history.loc[epoch + i / batch_size, 'train_loss'] = loss.data.cpu().numpy()
@@ -162,6 +164,7 @@ if __name__ == "__main__":
     model_saving_dir = check_point_dir
     log_file = args.log_file
     logger = init_logging(log_dir="../logs/", log_file=log_file)
+    writer = SummaryWriter('../logs/tensorboard/')
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     if args.use_checkpoint == 0:
@@ -286,6 +289,7 @@ if __name__ == "__main__":
             logger.info('Saving best model...')
             save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
             torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
+        writer.add_scalar("evaluation/loss_total", loss, epoch + 1)
 
     history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
     history2.to_csv(os.path.join(model_saving_dir, "test_history.csv"), index=False)
