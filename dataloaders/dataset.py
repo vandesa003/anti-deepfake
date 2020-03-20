@@ -55,7 +55,7 @@ class ConcatDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.transform:
             image = self.transform(image)
-        sample = (image, label)
+        sample = {"image": image, "label": label}
         return sample
 
 
