@@ -11,7 +11,7 @@ from torchvision.transforms import Resize, RandomRotation, RandomHorizontalFlip,
     ToPILImage
 import skimage.transform as tsf
 import random
-from torchvision.transforms import functional as ttf
+import cv2
 
 train_transformer = transforms.Compose([
     ToPILImage(),
@@ -60,8 +60,8 @@ class RandomHFlip(object):
     def __call__(self, frames):
         if random.random() < self.p:
             for x in range(self.num_frame):
-                frames[:, x * self.size:(x + 1) * self.size, :] = ttf.hflip(
-                    frames[:, x * self.size:(x + 1) * self.size, :])
+                frames[:, x * self.size:(x + 1) * self.size, :] = cv2.flip(
+                    frames[:, x * self.size:(x + 1) * self.size, :], 1)
             return frames
         return frames
 
