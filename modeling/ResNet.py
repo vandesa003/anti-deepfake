@@ -17,8 +17,14 @@ class ResNext101(nn.Module):
 
 class ResNet50(nn.Module):
     def __init__(self, pretrained=True):
-        super(ResNet50).__init__()
+        super(ResNet50, self).__init__()
         model = models.resnet50(pretrained=pretrained)
         num_ftrs = model.fc.in_features
-        model.fc = nn.Linear(num_ftrs, 1)
+        model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
         self.base = model
+        self.fc = nn.Linear(num_ftrs, 1)
+
+    def forward(self, x):
+        x = self.base(x)
+        x = self.fc(x)
+        return x
