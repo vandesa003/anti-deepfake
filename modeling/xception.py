@@ -12,25 +12,11 @@ from pytorchcv.model_provider import get_model
 class Head(nn.Module):
     def __init__(self, in_f, out_f):
         super(Head, self).__init__()
-
         self.f = nn.Flatten()
-        self.l = nn.Linear(in_f, 512)
-        self.d = nn.Dropout(0.75)
-        self.o = nn.Linear(512, out_f)
-        self.b1 = nn.BatchNorm1d(in_f)
-        self.b2 = nn.BatchNorm1d(512)
-        self.r = nn.ReLU()
+        self.o = nn.Linear(in_f, out_f)
 
     def forward(self, x):
         x = self.f(x)
-        x = self.b1(x)
-        x = self.d(x)
-
-        x = self.l(x)
-        x = self.r(x)
-        x = self.b2(x)
-        x = self.d(x)
-
         out = self.o(x)
         return out
 
