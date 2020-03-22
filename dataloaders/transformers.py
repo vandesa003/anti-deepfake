@@ -97,7 +97,7 @@ def video_collate_fn(batch):
     target = [item["label"] for item in batch]
     data = torch.cat(data, dim=0)
     # target = torch.tensor(target).type(torch.LongTensor)
-    target = torch.cat(target).type(torch.LongTensor)
+    target = torch.cat(target, dim=0)
     return [data, target]
 
 

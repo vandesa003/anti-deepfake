@@ -5,6 +5,7 @@ Created On 9th Mar, 2020
 Author: Bohang Li
 """
 import os
+import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import cv2
@@ -69,7 +70,7 @@ class ConcatDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.transform:
             image = self.transform(image)
-        label = [label] * 10
+        label = torch.tensor([label] * 10).type(torch.LongTensor)
         sample = {"image": image, "label": label}
         return sample
 
