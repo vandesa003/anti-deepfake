@@ -2,12 +2,14 @@ import torch
 from torch import nn
 from pytorchcv.model_provider import get_model
 from pytorchcv.models.xception import Xception
+from modeling import BinaryXception, ResNet50, ResNext101
 
 
 class Combine(nn.Module):
     def __init__(self):
         super(Combine, self).__init__()
-        model = get_model("xception", in_channels=3, in_size=(240, 240), pretrained=True)
+        # model = get_model("xception", in_channels=3, in_size=(240, 240), pretrained=True)
+        model = ResNet50(pretrained=True)
         self.cnn = nn.Sequential(*list(model.children())[:-1])
         self.rnn = nn.LSTM(2048, 128, batch_first=True, dropout=0)
         self.linear1 = nn.Linear(128, 64)

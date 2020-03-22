@@ -13,6 +13,7 @@ from tqdm import tqdm
 from modeling.xception import BinaryXception
 from modeling.ResNet import ResNet50, ResNext101
 from modeling.head3d import Xception3DNet, ResNet3DNet
+from modeling.CNN_LSTM import Combine
 from dataloaders.dataset import PatchDataset, ConcatDataset
 from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -181,7 +182,8 @@ if __name__ == "__main__":
     elif "xception" in args.model.lower():
         model = BinaryXception()  # model architecture.
     elif "video" in args.model.lower():
-        model = ResNet3DNet()
+        # model = ResNet3DNet()
+        model = Combine()
     elif "resnet" in args.model.lower():
         model = ResNet50()
     else:
