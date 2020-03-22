@@ -28,11 +28,11 @@ class BinaryXception(nn.Module):
         :param in_f: default 2048.
         """
         super(BinaryXception, self).__init__()
-        model = get_model("xception", pretrained=pretrained, in_size=(224, 224))
+        model = get_model("efficientnet_b0", pretrained=pretrained)
         # model = get_model("resnet18", pretrained=True)
         model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
         self.base = model
-        self.h1 = Head(2048, 1)
+        self.h1 = Head(1280, 1)
 
     def forward(self, x):
         x = self.base(x)
