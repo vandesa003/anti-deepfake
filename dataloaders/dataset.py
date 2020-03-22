@@ -45,11 +45,13 @@ class ConcatDataset(Dataset):
         for path in os.listdir(image_folder):
             if has_file_allowed_extension(path, IMG_EXTENSIONS):
                 label = path.split("_")[-1].split(".")[0]
-                if label == 1:
+                if label == "1":
                     fake.append(path)
-                elif label == 0:
+                elif label == "0":
                     real.append(path)
                 else:
+                    print(label)
+                    print(type(label))
                     raise ValueError("wrong label!")
         fake = random.sample(fake, len(real))
         for i in real:
