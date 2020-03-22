@@ -46,9 +46,9 @@ class ConcatDataset(Dataset):
             if has_file_allowed_extension(path, IMG_EXTENSIONS):
                 label = path.split("_")[-1].split(".")[0]
                 if label == "1":
-                    fake.append(path)
+                    fake.append(os.path.join(image_folder, path))
                 elif label == "0":
-                    real.append(path)
+                    real.append(os.path.join(image_folder, path))
                 else:
                     print(label)
                     print(type(label))
