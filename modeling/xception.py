@@ -28,7 +28,7 @@ class BinaryXception(nn.Module):
         :param in_f: default 2048.
         """
         super(BinaryXception, self).__init__()
-        model = get_model("xception", pretrained=pretrained)
+        model = get_model("xception", pretrained=pretrained, in_size=(224, 224))
         # model = get_model("resnet18", pretrained=True)
         model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
         self.base = model

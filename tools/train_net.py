@@ -200,7 +200,7 @@ if __name__ == "__main__":
     num_workers = 0  # number of workers
 
     # -----------train dataset & dataloader-----------------
-    train_data_path = "../dataset/video_img/train"
+    train_data_path = "../dataset/video_img_batch/train"
 
     # train_csv = pd.read_csv("../dataset/trn_frames.csv")
     # train_image_list = train_csv["framename"]
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     )
 
     # -------------val dataset & dataloader-----------------
-    val_data_path = "../dataset/video_img/val"
+    val_data_path = "../dataset/video_img_batch/val"
     # val_csv = pd.read_csv("../dataset/trn_frames.csv")
     # val_image_list = val_csv["framename"]
     # val_label_list = val_csv["label"]

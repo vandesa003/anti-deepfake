@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import cv2
 from albumentations import Blur, JpegCompression, Compose
+import random
 
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -39,11 +40,22 @@ class ConcatDataset(Dataset):
         self.image_folder = image_folder
         self.transform = transform
         samples = []
+        real = []
+        fake = []
         for path in os.listdir(image_folder):
             if has_file_allowed_extension(path, IMG_EXTENSIONS):
                 label = path.split("_")[-1].split(".")[0]
-                img_path = os.path.join(image_folder, path)
-                samples.append((img_path, int(label)))
+                if label == 1:
+                    fake.append(path)
+                elif label == 0:
+                    real.append(path)
+                else:
+                    raise ValueError("wrong label!")
+        fake = random.sample(fake, len(real))
+        for i in real:
+            samples.append((i, 0))
+        for j in fake:
+            samples.append((j, 1))
         self.samples = samples
 
     def __len__(self):
@@ -55,6 +67,7 @@ class ConcatDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.transform:
             image = self.transform(image)
+        label = [label] * 10
         sample = {"image": image, "label": label}
         return sample
 
