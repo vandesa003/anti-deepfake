@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/face_patches/"
-    train_csv = pd.read_csv("../dataset/trn_patches_ffhq_false_img_concat.csv")
+    train_csv = pd.read_csv("../dataset/batch_train_concat_0322.csv")
     train_image_list = train_csv["subname"]
     train_label_list = train_csv["label"]
     transformer = train_transformer
@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
     # -------------val dataset & dataloader-----------------
     val_data_path = train_data_path
-    val_csv = pd.read_csv("../dataset/val_patches_ffhq_false_img_concat.csv")
+    val_csv = pd.read_csv("../dataset/batch_val_concat_0322.csv")
     val_image_list = val_csv["subname"]
     val_label_list = val_csv["label"]
     transformer = train_transformer
