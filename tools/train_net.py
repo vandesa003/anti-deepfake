@@ -182,6 +182,8 @@ if __name__ == "__main__":
         model = BinaryXception()  # model architecture.
     elif "video" in args.model.lower():
         model = ResNet3DNet()
+    elif "resnet" in args.model.lower():
+        model = ResNet50()
     else:
         raise ValueError("model is not implemented yet!")
     # model = nn.DataParallel(model, device_ids=device_ids)

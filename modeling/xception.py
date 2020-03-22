@@ -7,6 +7,7 @@ Author: Bohang Li
 """
 from torch import nn
 from pytorchcv.model_provider import get_model
+from pytorchcv.models.xception import Xception
 
 
 class Head(nn.Module):
