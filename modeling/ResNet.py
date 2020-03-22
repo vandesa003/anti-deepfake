@@ -26,5 +26,6 @@ class ResNet50(nn.Module):
 
     def forward(self, x):
         x = self.base(x)
+        x = x.view(-1, 2048)
         x = self.fc(x)
         return x
