@@ -87,6 +87,7 @@ if __name__ == "__main__":
             except:
                 print(Exception)
                 error_info.append(vid)
+                score = 0.5
             video.append((infer.video_path.split("/")[-1], len(infer.faces), score))
             for ix, face in enumerate(infer.faces):
                 saving_name = "../dataset/infer_faces/" + vid.split("/")[-1].split(".")[0] + "_{}_".format(ix) + ".jpg"
