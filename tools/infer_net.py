@@ -105,4 +105,6 @@ if __name__ == "__main__":
     res = pd.DataFrame({"filename": val_filenames, "label": val_label})
     res = res.merge(report, left_on="filename", right_on="video")
     res.to_csv("../logs/report.csv", index=False)
+    error_info = pd.DataFrame(error_info, columns=["video"])
+    error_info.to_csv("../logs/error_info.csv", index=False)
     print(report)
