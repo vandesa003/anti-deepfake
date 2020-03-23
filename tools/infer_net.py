@@ -53,7 +53,7 @@ class VideoProcess(object):
         self.face_scores = scores
 
     def classifier(self, input_size):
-        print("there are: {} faces".format(len(self.faces)))
+        # print("there are: {} faces".format(len(self.faces)))
         transformer = infer_transformer
         transformed_face_list = [transformer(x) for x in self.faces]
         faces_tensor = torch.stack(transformed_face_list)
@@ -62,8 +62,8 @@ class VideoProcess(object):
         with torch.no_grad():
             y_pred = cls_model(x)
             y_pred = torch.sigmoid(y_pred.squeeze())
-            print("the scores are: {}".format(y_pred))
-            print("average score is: {}".format(y_pred[:len(self.faces)].mean().item()))
+            # print("the scores are: {}".format(y_pred))
+            # print("average score is: {}".format(y_pred[:len(self.faces)].mean().item()))
             return y_pred[:len(self.faces)].mean().item()
 
 
@@ -77,11 +77,16 @@ if __name__ == "__main__":
     cls_model = BinaryXception()
     cls_model.eval().cuda()
     cls_model.load_state_dict(torch.load("../saved_models/Xception_patch_concat_0322/model.pth"))
+    error_info = []
     # res = parmap.map(fun, glob("../dataset/dfdc_train_part_0/*.mp4"), pm_processes=30, pm_pbar=True)
     for folder_id in range(41, 42):
         for vid in tqdm(glob("/home/chongmin/karkin/data/dfdc_train_all/dfdc_train_part_{}/*.mp4".format(str(folder_id).zfill(3)))):  # fsdrwikhge
             infer = VideoProcess(vid, face_detector, cls_model)
-            score = infer.classifier(300)
+            try:
+                score = infer.classifier(300)
+            except:
+                print(Exception)
+                error_info.append(vid)
             video.append((infer.video_path.split("/")[-1], len(infer.faces), score))
             for ix, face in enumerate(infer.faces):
                 saving_name = "../dataset/infer_faces/" + vid.split("/")[-1].split(".")[0] + "_{}_".format(ix) + ".jpg"
