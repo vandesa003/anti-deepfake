@@ -78,7 +78,7 @@ if __name__ == "__main__":
     cls_model.eval().cuda()
     cls_model.load_state_dict(torch.load("../saved_models/Xception_patch_concat_0322/model.pth"))
     # res = parmap.map(fun, glob("../dataset/dfdc_train_part_0/*.mp4"), pm_processes=30, pm_pbar=True)
-    for folder_id in range(40, 41):
+    for folder_id in range(41, 42):
         for vid in tqdm(glob("/home/chongmin/karkin/data/dfdc_train_all/dfdc_train_part_{}/*.mp4".format(str(folder_id).zfill(3)))):  # fsdrwikhge
             infer = VideoProcess(vid, face_detector, cls_model)
             score = infer.classifier(300)
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     report = pd.DataFrame(video, columns=["video", "num_face", "score"])
     val_filenames = []
     val_label = []
-    for i in range(40, 41):
+    for i in range(41, 42):
         if i <= 9:
             id = str(i)
         else:
