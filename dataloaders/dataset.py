@@ -79,6 +79,9 @@ class FinalDataset(Dataset):
         label = torch.tensor([0, 1])
         return image, label
 
+    def __len__(self):
+        return len(self.samples) * 2
+
 
 class OriginDataset(Dataset):
     def __init__(self, image_folder, transform=None):
