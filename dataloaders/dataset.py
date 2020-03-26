@@ -80,7 +80,7 @@ class FinalDataset(Dataset):
         return image, label
 
     def __len__(self):
-        return len(self.samples) * 2
+        return len(self.samples)
 
 
 class OriginDataset(Dataset):
