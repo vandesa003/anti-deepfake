@@ -48,13 +48,13 @@ class FinalDataset(Dataset):
         real = []
         fake = []
         for k, v in data_dict.items():
-            real_path = os.path.join(image_folder, k)
+            real_path = os.path.join(image_folder, k.replace(".mp4", ".jpg"))
             fake_candidates = random.sample(v, len(v))
             if not os.path.isfile(real_path):
                 continue
             fake_path = os.path.join(image_folder, fake_candidates[0])
             for path in fake_candidates:
-                fake_path = os.path.join(image_folder, path)
+                fake_path = os.path.join(image_folder, path.replace(".mp4", ".jpg"))
                 if os.path.isfile(fake_path):
                     break
             if not os.path.isfile(fake_path):
