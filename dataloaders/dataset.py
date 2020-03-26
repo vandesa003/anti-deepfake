@@ -11,6 +11,7 @@ from PIL import Image
 import cv2
 from albumentations import Blur, JpegCompression, Compose
 import random
+import pickle
 
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -34,6 +35,72 @@ def has_file_allowed_extension(filename, extensions):
         bool: True if the filename ends with one of given extensions
     """
     return filename.lower().endswith(extensions)
+
+
+class FinalDataset(Dataset):
+    def __init__(self, image_folder, kind, transform=None):
+        if kind == "val":
+            with open("../dataset/origin_map_val.pkl", "rb") as fp:
+                data_dict = pickle.load(fp)
+        else:
+            with open("../dataset/origin_map_train.pkl", "rb") as fp:
+                data_dict = pickle.load(fp)
+        real = []
+        fake = []
+        for k, v in data_dict.items():
+            real_path = os.path.join(image_folder, k)
+            fake_candidates = random.sample(v, len(v))
+            if not os.path.isfile(real_path):
+                continue
+            fake_path = os.path.join(image_folder, fake_candidates[0])
+            for path in fake_candidates:
+                fake_path = os.path.join(image_folder, path)
+                if os.path.isfile(fake_path):
+                    break
+            if not os.path.isfile(fake_path):
+                continue
+            real.append(real_path)
+            fake.append(fake_path)
+        assert len(real) == len(fake)
+        print("Real Sample:{0}, Fake Sample:{1}".format(len(real), len(fake)))
+        self.samples = [(r, f) for r, f in zip(real, fake)]
+        self.transform = transform
+
+    def __getitem__(self, item):
+        real_path, fake_path = self.samples[item]
+        real = cv2.cvtColor(cv2.imread(real_path), cv2.COLOR_BGR2RGB)
+        fake = cv2.cvtColor(cv2.imread(fake_path), cv2.COLOR_BGR2RGB)
+        if self.transform:
+            real = self.transform(real)
+            fake = self.transform(fake)
+        real = real.unsqueeze(0)
+        fake = fake.unsqueeze(0)
+        image = torch.cat((real, fake), dim=0)  # B, Time, C, H, W
+        label = torch.tensor([0, 1])
+        return image, label
+
+
+class OriginDataset(Dataset):
+    def __init__(self, image_folder, transform=None):
+        self.image_folder = image_folder
+        self.transform = transform
+        with open("../dataset/real_faces_1_1.pkl", "rb") as fp:
+            real = pickle.load(fp)
+        with open("../dataset/fake_faces_1_1.pkl", "rb") as fp:
+            fake = pickle.load(fp)
+        real_samples = [(os.path.join(image_folder, x), 0) for x in real]
+        fake_samples = [(os.path.join(image_folder, x), 1) for x in fake]
+        self.samples = real_samples + fake_samples
+
+    def __getitem__(self, item):
+        img_path, label = self.samples[item]
+        image = cv2.imread(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            image = self.transform(image)
+        # label = torch.tensor([label] * 10).type(torch.LongTensor)
+        sample = {"image": image, "label": label}
+        return sample
 
 
 class ConcatDataset(Dataset):

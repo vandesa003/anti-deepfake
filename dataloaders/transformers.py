@@ -101,6 +101,14 @@ def video_collate_fn(batch):
     return [data, target]
 
 
+def pair_collate_fn(batch):
+    data = [item[0] for item in batch]
+    data = torch.cat(data, dim=0)  # B, Time, C, H, W
+    target = [item[1] for item in batch]
+    target = torch.cat(target, dim=0)
+    return [data, target]
+
+
 """
 Segmentation Transformer/Pixel-level task transformer.
 """

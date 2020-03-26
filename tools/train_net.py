@@ -14,8 +14,8 @@ from modeling.xception import BinaryXception
 from modeling.ResNet import ResNet50, ResNext101
 from modeling.head3d import Xception3DNet, ResNet3DNet
 from modeling.CNN_LSTM import Combine
-from dataloaders.dataset import PatchDataset, ConcatDataset
-from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm
+from dataloaders.dataset import PatchDataset, ConcatDataset, FinalDataset
+from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm, pair_collate_fn
 from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
@@ -204,14 +204,15 @@ if __name__ == "__main__":
     num_workers = 0  # number of workers
 
     # -----------train dataset & dataloader-----------------
-    train_data_path = "../dataset/video_img_batch/train"
+    train_data_path = "../dataset/videos/"
 
     # train_csv = pd.read_csv("../dataset/trn_frames.csv")
     # train_image_list = train_csv["framename"]
     # train_label_list = train_csv["label"]
     transformer = transforms.Compose([RandomHFlip(0.5), MinMaxNorm(), VideoToTensor()])
-    train_dataset = ConcatDataset(
+    train_dataset = FinalDataset(
         image_folder=train_data_path,
+        kind="train",
         transform=transformer
     )
     # ---------------------for quick test-------------------
@@ -222,17 +223,18 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,
-        collate_fn=video_collate_fn, num_workers=num_workers, pin_memory=True
+        collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
     )
 
     # -------------val dataset & dataloader-----------------
-    val_data_path = "../dataset/video_img_batch/val"
+    val_data_path = "../dataset/videos/"
     # val_csv = pd.read_csv("../dataset/trn_frames.csv")
     # val_image_list = val_csv["framename"]
     # val_label_list = val_csv["label"]
     transformer = transforms.Compose([MinMaxNorm(), VideoToTensor()])
-    val_dataset = ConcatDataset(
+    val_dataset = FinalDataset(
         image_folder=val_data_path,
+        kind="val",
         transform=transformer
     )
     # ---------------------for quick test-------------------
@@ -242,7 +244,7 @@ if __name__ == "__main__":
 
     val_dataloader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
-        collate_fn=video_collate_fn, num_workers=num_workers, pin_memory=True
+        collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
     )
 
     num_batches = math.ceil(len(train_dataset) / n_epochs)
