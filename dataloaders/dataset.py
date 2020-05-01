@@ -12,6 +12,7 @@ import cv2
 from albumentations import Blur, JpegCompression, Compose
 import random
 import pickle
+import numpy as np
 
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -38,7 +39,7 @@ def has_file_allowed_extension(filename, extensions):
 
 
 class FinalDataset(Dataset):
-    def __init__(self, image_folder, kind, transform=None):
+    def __init__(self, image_folder, kind, transform=None, pair_wise=False):
         if kind == "val":
             with open("../dataset/origin_map_val.pkl", "rb") as fp:
                 data_dict = pickle.load(fp)
@@ -63,21 +64,36 @@ class FinalDataset(Dataset):
             fake.append(fake_path)
         assert len(real) == len(fake)
         print("Real Sample:{0}, Fake Sample:{1}".format(len(real), len(fake)))
-        self.samples = [(r, f) for r, f in zip(real, fake)]
+        self.pair_wise = pair_wise
+        if self.pair_wise:
+            self.samples = [(r, f) for r, f in zip(real, fake)]
+        else:
+            img = real + fake
+            label = [0] * len(real) + [1] * len(fake)
+            self.samples = [(im, l) for im, l in zip(img, label)]
         self.transform = transform
 
     def __getitem__(self, item):
-        real_path, fake_path = self.samples[item]
-        real = cv2.cvtColor(cv2.imread(real_path), cv2.COLOR_BGR2RGB)
-        fake = cv2.cvtColor(cv2.imread(fake_path), cv2.COLOR_BGR2RGB)
-        if self.transform:
-            real = self.transform(real)
-            fake = self.transform(fake)
-        real = real.unsqueeze(0)
-        fake = fake.unsqueeze(0)
-        image = torch.cat((real, fake), dim=0)  # B, Time, C, H, W
-        label = torch.tensor([0, 1])
-        return image, label
+        if self.pair_wise:
+            real_path, fake_path = self.samples[item]
+            real = cv2.cvtColor(cv2.imread(real_path), cv2.COLOR_BGR2RGB)
+            fake = cv2.cvtColor(cv2.imread(fake_path), cv2.COLOR_BGR2RGB)
+            if self.transform:
+                real = self.transform(real)
+                fake = self.transform(fake)
+            real = real.unsqueeze(0)
+            fake = fake.unsqueeze(0)
+            image = torch.cat((real, fake), dim=0)  # B, Time, C, H, W
+            label = torch.tensor([0, 1])
+            return image, label
+        else:
+            path, label = self.samples[item]
+            img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
+            if self.transform:
+                img = self.transform(img)
+            img = img.unsqueeze(0)
+            label = torch.tensor([label])
+            return img, label
 
     def __len__(self):
         return len(self.samples)

@@ -8,6 +8,7 @@ import os
 import torch
 from torch import nn
 from modeling import BinaryXception, ResNet50, ResNext101
+from pytorchcv.model_provider import get_model
 
 
 def _get_xception_model(path="../saved_models/model_with_ffhq_balance_2.pth"):
@@ -44,6 +45,7 @@ class Head3D(nn.Module):
         self.fc = nn.Linear(out_ch * expansion, 1)
 
     def forward(self, x):
+        # batch_size, timesteps, C, H, W = x.size()  # batch_size, 10(frames), 1280, 1, 1
         x = self.conv3d(x)
         x = self.bn(x)
         x = self.relu(x)
@@ -74,6 +76,22 @@ class HeadDNN(nn.Module):
         x = self.relu(x)
         x = self.drop(x)
         x = self.fc2(x)
+        return x
+
+
+class Efficient3DNet(nn.Module):
+    def __init__(self, pretrained=True):
+        super(Efficient3DNet, self).__init__()
+        model = get_model("efficientnet_b0", pretrained=pretrained)
+        self.model = nn.Sequential(*list(model.children())[:-1])  # Remove original output layer
+        self.head = Head3D(in_ch=1280, out_ch=128, feat_h=1, feat_w=1, frame_num=10)
+
+    def forward(self, x):
+        batch_size, timesteps, C, H, W = x.size()  # batch_size, 10(frames), 3, 240, 240
+        x = x.view(batch_size * timesteps, C, H, W)  # (10*batch, 3, 240, 240)
+        x = self.model(x)
+        x = x.view((-1, 1280, 10, 1, 1))
+        x = self.head(x)
         return x
 
 

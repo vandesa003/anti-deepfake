@@ -80,5 +80,5 @@ After inference, the result will be saved under `./dataset/submission.csv`
 - [x] Basic training logic
 - [x] Weighted training
 - [x] Inference
-- [ ] Data augmentation
-- [ ] Better face detection model/ finetune face detection model
+- [x] Data augmentation
+- [x] Better face detection model/ finetune face detection model

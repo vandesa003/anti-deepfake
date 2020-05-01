@@ -12,6 +12,7 @@ from torchvision.transforms import Resize, RandomRotation, RandomHorizontalFlip,
 import skimage.transform as tsf
 import random
 import cv2
+from albumentations import Blur, JpegCompression, Compose
 
 train_transformer = transforms.Compose([
     ToPILImage(),
@@ -66,16 +67,48 @@ class RandomHFlip(object):
         return frames
 
 
+class VideoJpegCompress(object):
+    def __init__(self, p, num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+        self.p = p
+
+    def __call__(self, frames):
+        if random.random() < self.p:
+            trans = Compose([JpegCompression(p=1, quality_lower=70, quality_upper=90)])
+            for x in range(self.num_frame):
+                frames[:, x * self.size:(x + 1) * self.size, :] = trans(image=frames[:, x * self.size:(x + 1) * self.size, :])["image"]
+            return frames
+        return frames
+
+
+class VideoBlur(object):
+    def __init__(self, p, num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+        self.p = p
+
+    def __call__(self, frames):
+        if random.random() < self.p:
+            trans = Compose([Blur(p=1)])
+            for x in range(self.num_frame):
+                frames[:, x * self.size:(x + 1) * self.size, :] = \
+                trans(image=frames[:, x * self.size:(x + 1) * self.size, :])["image"]
+            return frames
+        return frames
+
+
 class MinMaxNorm(object):
     def __init__(self, num_frame=10, size=240):
         self.num_frame = num_frame
         self.size = size
 
     def __call__(self, frames):
+        float_frames = np.zeros(frames.shape, dtype=np.float)
         for x in range(self.num_frame):
-            frames[:, x * self.size:(x + 1) * self.size, :] = get_birghtness(
+            float_frames[:, x * self.size:(x + 1) * self.size, :] = get_birghtness(
                 frames[:, x * self.size:(x + 1) * self.size, :])
-        return frames
+        return float_frames
 
 
 class VideoToTensor(object):

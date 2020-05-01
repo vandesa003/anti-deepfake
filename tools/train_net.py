@@ -12,10 +12,10 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
 from modeling.ResNet import ResNet50, ResNext101
-from modeling.head3d import Xception3DNet, ResNet3DNet
+from modeling.head3d import Xception3DNet, ResNet3DNet, Efficient3DNet
 from modeling.CNN_LSTM import Combine
 from dataloaders.dataset import PatchDataset, ConcatDataset, FinalDataset
-from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm, pair_collate_fn
+from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm, pair_collate_fn, VideoBlur, VideoJpegCompress
 from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
@@ -54,15 +54,22 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     return model, optimizer, checkpoint['epoch']
 
 
-def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=None, accumulation_steps=18):
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Conv') != -1:
+#         xavier(m.weight.data)
+#         xavier(m.bias.data)
+
+
+def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=None, accumulation_steps=18, scheduler=None):
     if logger is None:
         logger = init_logging(log_dir="../logs/", log_file="training.log", log_level="error")
     model.cuda()
     model.train()
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=10, mode='min',
-        factor=0.7, verbose=True, min_lr=1e-5
-    )
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer, patience=200, mode='min',
+    #     factor=0.7, verbose=True, min_lr=1e-5
+    # )
     total_loss = 0
     # Need to change here!
     t = tqdm(dataloader)
@@ -73,6 +80,9 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         out = model(img_batch)
+        # print(torch.sigmoid(out), y_batch)
+        # print(torch.sigmoid(out))
+        # print(y_batch)
         loss = criterion1(out, y_batch, weight=None)
 
         total_loss += loss
@@ -93,8 +103,8 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
             history.loc[epoch + i / batch_size, 'train_loss'] = loss.data.cpu().numpy()
             history.loc[epoch + i / batch_size, 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
 
-        if scheduler is not None:
-            scheduler.step(total_loss)
+        # if scheduler is not None:
+        #     scheduler.step(total_loss)
 
 
 def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logger=None):
@@ -181,9 +191,11 @@ if __name__ == "__main__":
         model = ResNext101()  # model architecture.
     elif "xception" in args.model.lower():
         model = BinaryXception()  # model architecture.
-    elif "video" in args.model.lower():
+    elif "lstm" in args.model.lower():
         # model = ResNet3DNet()
         model = Combine()
+    elif "3d-conv" in args.model.lower():
+        model = Efficient3DNet()
     elif "resnet" in args.model.lower():
         model = ResNet50()
     else:
@@ -191,8 +203,13 @@ if __name__ == "__main__":
     # model = nn.DataParallel(model, device_ids=device_ids)
 
     # -------------------optimizer config.------------------
+    # optimizer = Adam(
+    #     filter(lambda p: p.requires_grad, model.parameters()),
+    #     lr=args.base_lr
+    # )
+    print(model.parameters())
     optimizer = Adam(
-        filter(lambda p: p.requires_grad, model.parameters()),
+        model.parameters(),
         lr=args.base_lr
     )
     acc_steps = args.acc_steps  # used for accumulate loss. must be divisible by number of batches.
@@ -201,7 +218,7 @@ if __name__ == "__main__":
     best = 1e10
     n_epochs = args.n_epochs  # number of training epochs.
     batch_size = args.batch_size  # number of batch size.
-    num_workers = 0  # number of workers
+    num_workers = 20  # number of workers
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/videos/"
@@ -209,11 +226,12 @@ if __name__ == "__main__":
     # train_csv = pd.read_csv("../dataset/trn_frames.csv")
     # train_image_list = train_csv["framename"]
     # train_label_list = train_csv["label"]
-    transformer = transforms.Compose([RandomHFlip(0.5), MinMaxNorm(), VideoToTensor()])
+    # transformer = transforms.Compose([RandomHFlip(0.5), MinMaxNorm(), VideoToTensor()])
+    train_transformer = transforms.Compose([VideoBlur(p=0.1), VideoJpegCompress(0.2), MinMaxNorm(), VideoToTensor()])
     train_dataset = FinalDataset(
         image_folder=train_data_path,
         kind="train",
-        transform=transformer
+        transform=train_transformer
     )
     # ---------------------for quick test-------------------
     if args.quick_test != 0:
@@ -225,17 +243,19 @@ if __name__ == "__main__":
         train_dataset, batch_size=batch_size, shuffle=True,
         collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
     )
-
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[2, 3], gamma=0.1
+    )
     # -------------val dataset & dataloader-----------------
     val_data_path = "../dataset/videos/"
     # val_csv = pd.read_csv("../dataset/trn_frames.csv")
     # val_image_list = val_csv["framename"]
     # val_label_list = val_csv["label"]
-    transformer = transforms.Compose([MinMaxNorm(), VideoToTensor()])
+    val_transformer = transforms.Compose([MinMaxNorm(), VideoToTensor()])
     val_dataset = FinalDataset(
         image_folder=val_data_path,
         kind="val",
-        transform=transformer
+        transform=val_transformer
     )
     # ---------------------for quick test-------------------
     if args.quick_test != 0:
@@ -279,7 +299,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger, accumulation_steps=acc_steps)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger, accumulation_steps=acc_steps, scheduler=scheduler)
 
         loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=history2, logger=logger)
 
@@ -296,6 +316,17 @@ if __name__ == "__main__":
             save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
             torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
         writer.add_scalar("evaluation/loss_total", loss, epoch + 1)
+        train_dataset = FinalDataset(
+            image_folder=train_data_path,
+            kind="train",
+            transform=train_transformer
+        )
+        train_dataloader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
+        )
+        scheduler.step(epoch)
+
 
     history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
     history2.to_csv(os.path.join(model_saving_dir, "test_history.csv"), index=False)
