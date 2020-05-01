@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
     # -----------train dataset & dataloader-----------------
     train_data_path = "../dataset/face_patches/"
-    train_csv = pd.read_csv("../dataset/trn_patches_True_ffhq_False.csv")
+    train_csv = pd.read_csv("../dataset/batch_train_concat_0322.csv")
     train_image_list = train_csv["subname"]
     train_label_list = train_csv["label"]
     transformer = train_transformer
@@ -215,11 +215,11 @@ if __name__ == "__main__":
         split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
         train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     # -------------val dataset & dataloader-----------------
     val_data_path = train_data_path
-    val_csv = pd.read_csv("../dataset/val_patches_True_ffhq_False.csv")
+    val_csv = pd.read_csv("../dataset/batch_val_concat_0322.csv")
     val_image_list = val_csv["subname"]
     val_label_list = val_csv["label"]
     transformer = train_transformer

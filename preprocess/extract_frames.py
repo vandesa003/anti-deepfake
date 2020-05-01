@@ -42,7 +42,7 @@ class FrameExtractor(object):
             if frame is None:
                 continue
             if (count-start_frame_idx) % interval == 0:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)  # convert color to RGB!
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert color to RGB!
                 frames.append(frame)
         self.video.release()
         self.key_frames = frames

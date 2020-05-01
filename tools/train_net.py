@@ -12,8 +12,10 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from modeling.xception import BinaryXception
 from modeling.ResNet import ResNet50, ResNext101
-from dataloaders.dataset import PatchDataset
-from dataloaders.transformers import train_transformer
+from modeling.head3d import Xception3DNet, ResNet3DNet, Efficient3DNet
+from modeling.CNN_LSTM import Combine
+from dataloaders.dataset import PatchDataset, ConcatDataset, FinalDataset
+from dataloaders.transformers import train_transformer, video_collate_fn, RandomHFlip, VideoToTensor, MinMaxNorm, pair_collate_fn, VideoBlur, VideoJpegCompress
 from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 import torch
@@ -27,6 +29,7 @@ from utils.logger import init_logging
 import shutil
 import math
 import argparse
+from torch.utils.tensorboard import SummaryWriter
 
 
 def criterion1(pred, targets, weight=None):
@@ -51,25 +54,35 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     return model, optimizer, checkpoint['epoch']
 
 
-def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=None, accumulation_steps=18):
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Conv') != -1:
+#         xavier(m.weight.data)
+#         xavier(m.bias.data)
+
+
+def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=None, accumulation_steps=18, scheduler=None):
     if logger is None:
         logger = init_logging(log_dir="../logs/", log_file="training.log", log_level="error")
     model.cuda()
     model.train()
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=300, mode='min',
-        factor=0.7, verbose=True, min_lr=1e-5
-    )
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer, patience=200, mode='min',
+    #     factor=0.7, verbose=True, min_lr=1e-5
+    # )
     total_loss = 0
     # Need to change here!
     t = tqdm(dataloader)
     optimizer.zero_grad()
     for i, data in enumerate(t):
-        img_batch = data["image"]
-        y_batch = data["label"].unsqueeze(1)
+        img_batch = data[0]
+        y_batch = data[1].unsqueeze(1)
         img_batch = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
         out = model(img_batch)
+        # print(torch.sigmoid(out), y_batch)
+        # print(torch.sigmoid(out))
+        # print(y_batch)
         loss = criterion1(out, y_batch, weight=None)
 
         total_loss += loss
@@ -84,13 +97,14 @@ def train_loop(model, dataloader, optimizer, epoch, n_epochs, history, logger=No
             optimizer.zero_grad()
             logger.info(f'Epoch {epoch + 1}/{n_epochs}, LR: %6f, Loss: %.4f' % (
                 optimizer.state_dict()['param_groups'][0]['lr'], total_loss / (i + 1)))
+            writer.add_scalar("Loss/loss_total", total_loss / (i + 1), epoch * (i + 1))
 
         if history is not None:
             history.loc[epoch + i / batch_size, 'train_loss'] = loss.data.cpu().numpy()
             history.loc[epoch + i / batch_size, 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
 
-        if scheduler is not None:
-            scheduler.step(total_loss)
+        # if scheduler is not None:
+        #     scheduler.step(total_loss)
 
 
 def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logger=None):
@@ -103,8 +117,8 @@ def evaluate_model(model, dataloader, epoch, scheduler=None, history=None, logge
     pred = torch.empty(0, dtype=torch.float)
     with torch.no_grad():
         for data in dataloader:
-            img_batch = data["image"]
-            y_batch = data["label"].unsqueeze(1)
+            img_batch = data[0]
+            y_batch = data[1].unsqueeze(1)
             img_batch = img_batch.cuda().float()
             y_batch = y_batch.cuda().float()
 
@@ -144,7 +158,7 @@ def get_parser():
                         default="../saved_models/patches_frame/")
     parser.add_argument("--log_file", dest="log_file", type=str, default="training_frame.log")
     parser.add_argument("--batch_size", dest="batch_size", type=int, default=64)
-    parser.add_argument("--model", dest=model, type=str, default="Xception")
+    parser.add_argument("--model", dest="model", type=str, default="Xception")
     parser.add_argument("--n_epochs", dest="n_epochs", type=int, default=30)
     parser.add_argument("--use_checkpoint", dest="use_checkpoint", type=int, default=0)
     parser.add_argument("--base_lr", dest="base_lr", type=float, default=0.02)
@@ -161,12 +175,13 @@ if __name__ == "__main__":
     model_saving_dir = check_point_dir
     log_file = args.log_file
     logger = init_logging(log_dir="../logs/", log_file=log_file)
+    writer = SummaryWriter('../logs/tensorboard/')
     # need to change it!!!
     # device_ids =[i for i in range(0, 2)]  # for multi-GPU training.
     if args.use_checkpoint == 0:
-        use_checkpoint = True
+        use_checkpoint = False
     else:
-        use_checkpoint = False  # whether start from a checkpoint.
+        use_checkpoint = True  # whether start from a checkpoint.
     from_best = True  # if start from a checkpoint, whether start from the best checkpoint.
     if not os.path.isdir(model_saving_dir):
         os.mkdir(model_saving_dir)
@@ -176,13 +191,25 @@ if __name__ == "__main__":
         model = ResNext101()  # model architecture.
     elif "xception" in args.model.lower():
         model = BinaryXception()  # model architecture.
+    elif "lstm" in args.model.lower():
+        # model = ResNet3DNet()
+        model = Combine()
+    elif "3d-conv" in args.model.lower():
+        model = Efficient3DNet()
+    elif "resnet" in args.model.lower():
+        model = ResNet50()
     else:
         raise ValueError("model is not implemented yet!")
     # model = nn.DataParallel(model, device_ids=device_ids)
 
     # -------------------optimizer config.------------------
+    # optimizer = Adam(
+    #     filter(lambda p: p.requires_grad, model.parameters()),
+    #     lr=args.base_lr
+    # )
+    print(model.parameters())
     optimizer = Adam(
-        filter(lambda p: p.requires_grad, model.parameters()),
+        model.parameters(),
         lr=args.base_lr
     )
     acc_steps = args.acc_steps  # used for accumulate loss. must be divisible by number of batches.
@@ -191,19 +218,20 @@ if __name__ == "__main__":
     best = 1e10
     n_epochs = args.n_epochs  # number of training epochs.
     batch_size = args.batch_size  # number of batch size.
-    num_workers = 0  # number of workers
+    num_workers = 20  # number of workers
 
     # -----------train dataset & dataloader-----------------
-    train_data_path = "../dataset/frames/"
-    train_csv = pd.read_csv("../dataset/trn_frames.csv")
-    train_image_list = train_csv["framename"]
-    train_label_list = train_csv["label"]
-    transformer = train_transformer
-    train_dataset = PatchDataset(
-        train_image_list,
-        train_data_path,
-        train_label_list,
-        transform=transformer
+    train_data_path = "../dataset/videos/"
+
+    # train_csv = pd.read_csv("../dataset/trn_frames.csv")
+    # train_image_list = train_csv["framename"]
+    # train_label_list = train_csv["label"]
+    # transformer = transforms.Compose([RandomHFlip(0.5), MinMaxNorm(), VideoToTensor()])
+    train_transformer = transforms.Compose([VideoBlur(p=0.1), VideoJpegCompress(0.2), MinMaxNorm(), VideoToTensor()])
+    train_dataset = FinalDataset(
+        image_folder=train_data_path,
+        kind="train",
+        transform=train_transformer
     )
     # ---------------------for quick test-------------------
     if args.quick_test != 0:
@@ -211,26 +239,33 @@ if __name__ == "__main__":
         split_ratio = [int(ratio * len(train_dataset)), len(train_dataset) - int(ratio * len(train_dataset))]
         train_dataset, _ = random_split(train_dataset, lengths=split_ratio)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True,
+        collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
+    )
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[2, 3], gamma=0.1
+    )
     # -------------val dataset & dataloader-----------------
-    val_data_path = train_data_path
-    val_csv = pd.read_csv("../dataset/trn_frames.csv")
-    val_image_list = val_csv["framename"]
-    val_label_list = val_csv["label"]
-    transformer = train_transformer
-    val_dataset = PatchDataset(
-        val_image_list,
-        val_data_path,
-        val_label_list,
-        transform=transformer
+    val_data_path = "../dataset/videos/"
+    # val_csv = pd.read_csv("../dataset/trn_frames.csv")
+    # val_image_list = val_csv["framename"]
+    # val_label_list = val_csv["label"]
+    val_transformer = transforms.Compose([MinMaxNorm(), VideoToTensor()])
+    val_dataset = FinalDataset(
+        image_folder=val_data_path,
+        kind="val",
+        transform=val_transformer
     )
     # ---------------------for quick test-------------------
     if args.quick_test != 0:
         split_ratio = [int(ratio * len(val_dataset)), len(val_dataset) - int(ratio * len(val_dataset))]
         val_dataset, _ = random_split(val_dataset, lengths=split_ratio)
 
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    val_dataloader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False,
+        collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
+    )
 
     num_batches = math.ceil(len(train_dataset) / n_epochs)
     logger.info(
@@ -264,7 +299,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
 
-        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger, accumulation_steps=acc_steps)
+        train_loop(model, train_dataloader, optimizer, epoch, n_epochs, history, logger=logger, accumulation_steps=acc_steps, scheduler=scheduler)
 
         loss = evaluate_model(model, val_dataloader, epoch, scheduler=None, history=history2, logger=logger)
 
@@ -280,6 +315,18 @@ if __name__ == "__main__":
             logger.info('Saving best model...')
             save_ckp(checkpoint, is_best=True, checkpoint_dir=check_point_dir, best_model_dir=check_point_dir)
             torch.save(model.state_dict(), os.path.join(model_saving_dir, 'model.pth'))
+        writer.add_scalar("evaluation/loss_total", loss, epoch + 1)
+        train_dataset = FinalDataset(
+            image_folder=train_data_path,
+            kind="train",
+            transform=train_transformer
+        )
+        train_dataloader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            collate_fn=pair_collate_fn, num_workers=num_workers, pin_memory=True
+        )
+        scheduler.step(epoch)
+
 
     history.to_csv(os.path.join(model_saving_dir, "train_history.csv"), index=False)
     history2.to_csv(os.path.join(model_saving_dir, "test_history.csv"), index=False)

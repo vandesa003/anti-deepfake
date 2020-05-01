@@ -7,9 +7,12 @@ Author: bohang.li
 import torch
 import numpy as np
 from torchvision import transforms
-from torchvision.transforms import Resize, RandomRotation, RandomHorizontalFlip, ToTensor, Normalize, ColorJitter, ToPILImage
+from torchvision.transforms import Resize, RandomRotation, RandomHorizontalFlip, ToTensor, Normalize, ColorJitter, \
+    ToPILImage
 import skimage.transform as tsf
-
+import random
+import cv2
+from albumentations import Blur, JpegCompression, Compose
 
 train_transformer = transforms.Compose([
     ToPILImage(),
@@ -21,7 +24,6 @@ train_transformer = transforms.Compose([
     Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-
 val_transformer = transforms.Compose([
     ToPILImage(),
     Resize((300, 300)),
@@ -30,6 +32,115 @@ val_transformer = transforms.Compose([
 ])
 
 # TODO: infer_transform !!!
+infer_transformer = transforms.Compose([
+    ToPILImage(),
+    Resize((300, 300)),
+    ToTensor(),
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+"""
+Video-level transform.
+"""
+
+
+def get_birghtness(img):
+    img_max = img.max()
+    if img_max != 0:
+        return img / img.max()
+    else:
+        return img
+
+
+class RandomHFlip(object):
+    def __init__(self, p, num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+        self.p = p
+
+    def __call__(self, frames):
+        if random.random() < self.p:
+            for x in range(self.num_frame):
+                frames[:, x * self.size:(x + 1) * self.size, :] = cv2.flip(
+                    frames[:, x * self.size:(x + 1) * self.size, :], 1)
+            return frames
+        return frames
+
+
+class VideoJpegCompress(object):
+    def __init__(self, p, num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+        self.p = p
+
+    def __call__(self, frames):
+        if random.random() < self.p:
+            trans = Compose([JpegCompression(p=1, quality_lower=70, quality_upper=90)])
+            for x in range(self.num_frame):
+                frames[:, x * self.size:(x + 1) * self.size, :] = trans(image=frames[:, x * self.size:(x + 1) * self.size, :])["image"]
+            return frames
+        return frames
+
+
+class VideoBlur(object):
+    def __init__(self, p, num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+        self.p = p
+
+    def __call__(self, frames):
+        if random.random() < self.p:
+            trans = Compose([Blur(p=1)])
+            for x in range(self.num_frame):
+                frames[:, x * self.size:(x + 1) * self.size, :] = \
+                trans(image=frames[:, x * self.size:(x + 1) * self.size, :])["image"]
+            return frames
+        return frames
+
+
+class MinMaxNorm(object):
+    def __init__(self, num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+
+    def __call__(self, frames):
+        float_frames = np.zeros(frames.shape, dtype=np.float)
+        for x in range(self.num_frame):
+            float_frames[:, x * self.size:(x + 1) * self.size, :] = get_birghtness(
+                frames[:, x * self.size:(x + 1) * self.size, :])
+        return float_frames
+
+
+class VideoToTensor(object):
+    def __init__(self,  num_frame=10, size=240):
+        self.num_frame = num_frame
+        self.size = size
+
+    def __call__(self, frames):
+        # frames  # H, W, C
+        tensor_list = []
+        for x in range(self.num_frame):
+            tensor_list.append(frames[:, x * self.size:(x + 1) * self.size, :])
+        frames_tensor = torch.tensor(tensor_list)  # B, H, W, C
+        return frames_tensor.permute(0, 3, 1, 2)  # B, C, H, W
+
+
+def video_collate_fn(batch):
+    data = [item["image"] for item in batch]
+    target = [item["label"] for item in batch]
+    data = torch.cat(data, dim=0)
+    # target = torch.tensor(target).type(torch.LongTensor)
+    target = torch.cat(target, dim=0)
+    return [data, target]
+
+
+def pair_collate_fn(batch):
+    data = [item[0] for item in batch]
+    data = torch.cat(data, dim=0)  # B, Time, C, H, W
+    target = [item[1] for item in batch]
+    target = torch.cat(target, dim=0)
+    return [data, target]
+
 
 """
 Segmentation Transformer/Pixel-level task transformer.
@@ -40,6 +151,7 @@ class Rescale(object):
     """
     Rescale for ndarray.
     """
+
     def __init__(self, width, height):
         self.width = width
         self.height = height
@@ -53,6 +165,7 @@ class ToTensor(object):
     """
     convert narrays in sample to Tensors.
     """
+
     def __call__(self, image):
         tmpImg = np.zeros((image.shape[0], image.shape[1], 3))
         # Convert image from [0, 255] to [0, 1].
@@ -69,6 +182,3 @@ class ToTensor(object):
         # transforms.Normalize(mean = (0.485, 0.456, 0.406), std = (0.229, 0.224, 0.225))
         tmpImg = tmpImg.transpose((2, 0, 1))
         return torch.from_numpy(tmpImg)
-
-
-
